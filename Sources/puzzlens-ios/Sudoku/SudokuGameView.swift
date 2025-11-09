@@ -60,9 +60,67 @@ struct SudokuGameCell: View, SudokuCellProtocol {
     }
 }
 
-// MARK: - Number Pad
+// MARK: - Input Pad Cell Protocol
+
+protocol InputPadCellProtocol: View {
+    init(label: String, onTap: @escaping () -> Void)
+}
+
+// MARK: - Default Input Pad Cell (matches SudokuGameCell vibe)
+
+struct SudokuInputPadCell: View, InputPadCellProtocol {
+    var label: String
+    var onTap: () -> Void
+
+    init(label: String, onTap: @escaping () -> Void) {
+        self.label = label
+        self.onTap = onTap
+    }
+
+    var body: some View {
+        Rectangle()
+            .fill(label == "Clear" ? .red.opacity(0.85) : .blue)
+            .overlay(
+                Text(label)
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding(.vertical, 8)
+            )
+            .onTapGesture { onTap() }
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+// MARK: - Example Custom Input Pad Cell (for .input(MyInputPad.self))
+
+struct MyInputPad: View, InputPadCellProtocol {
+    var label: String
+    var onTap: () -> Void
+
+    init(label: String, onTap: @escaping () -> Void) {
+        self.label = label
+        self.onTap = onTap
+    }
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 10)
+                .fill(label == "Clear" ? .black.opacity(0.8) : .indigo)
+                .shadow(radius: 1, x: 0, y: 1)
+            Text(label)
+                .font(.headline)
+                .foregroundColor(.white)
+                .padding(.vertical, 10)
+        }
+        .frame(width: .infinity, height: 60)
+        .onTapGesture { onTap() }
+    }
+}
+
+// MARK: - Number Pad (factory-driven)
 
 struct SudokuNumberPad: View {
+    var makeCell: (String, @escaping () -> Void) -> AnyView
     var onInput: (Int) -> Void
     var onClear: () -> Void
     
@@ -77,21 +135,10 @@ struct SudokuNumberPad: View {
             ForEach(0..<rows.count, id: \.self) { r in
                 HStack(spacing: 8) {
                     ForEach(rows[r], id: \.self) { label in
-                        Button(action: { onInput(Int(label)!) }) {
-                            Text(label)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                        }
-                        .buttonStyle(.borderedProminent)
+                        makeCell(label) { onInput(Int(label)!) }
                     }
                 }
             }
-            Button(role: .destructive, action: onClear) {
-                Text("Clear")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-            }
-            .buttonStyle(.bordered)
         }
     }
 }
@@ -123,6 +170,12 @@ struct SudokuGameView: View {
     private var cellFactory: (_ index: Int, _ isSelected: Binding<Bool>, _ text: String, _ isFixed: Bool) -> AnyView =
     { _, isSelected, text, isFixed in
         AnyView(SudokuGameCell(isSelected: isSelected, text: text, isFixed: isFixed))
+    }
+
+    // Input pad type-erased factory (default to SudokuInputPadCell)
+    private var inputPadFactory: (_ label: String, _ onTap: @escaping () -> Void) -> AnyView =
+    { label, onTap in
+        AnyView(SudokuInputPadCell(label: label, onTap: onTap))
     }
 
     // n×m with matching H/V spacing
@@ -192,8 +245,9 @@ struct SudokuGameView: View {
             }
             .aspectRatio(1, contentMode: .fit) // Keep grid square
             
-            // Number Pad
+            // Number Pad (factory-driven)
             SudokuNumberPad(
+                makeCell: inputPadFactory,
                 onInput: { number in
                     guard let idx = selectedIndex else { return }
                     let row = idx / m
@@ -240,6 +294,15 @@ struct SudokuGameView: View {
         }
         return copy
     }
+
+    // API: .input(MyInputPad.self)
+    func input<T: InputPadCellProtocol>(_ type: T.Type) -> Self {
+        var copy = self
+        copy.inputPadFactory = { label, onTap in
+            AnyView(T(label: label, onTap: onTap))
+        }
+        return copy
+    }
 }
 
 // MARK: - Safe Indexing Helper
@@ -256,6 +319,7 @@ private extension Array {
     VStack {
         SudokuGameView(model: .example)
             .grid(2, SudokuGameCell.self)
+            .input(MyInputPad.self) // Try swapping to .input(SudokuInputPadCell.self)
             .padding()
     }
 }
