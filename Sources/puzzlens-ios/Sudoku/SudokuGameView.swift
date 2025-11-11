@@ -36,13 +36,17 @@ public struct SudokuGameModel {
     )
 }
 
-// MARK: - Cell Protocol
+// MARK: - Protocols
+
+public protocol InputPadCellProtocol: View {
+    init(label: String, onTap: @escaping () -> Void)
+}
 
 public protocol SudokuCellProtocol: View {
     init(isSelected: Binding<Bool>, text: String, isFixed: Bool)
 }
 
-// MARK: - Default Input Pad Cell (matches SudokuGameCell vibe)
+// MARK: - Default Cells
 
 struct SudokuInputPadCell: View, InputPadCellProtocol {
     var label: String
@@ -55,7 +59,7 @@ struct SudokuInputPadCell: View, InputPadCellProtocol {
 
     var body: some View {
         Rectangle()
-            .fill(label == "Clear" ? .red.opacity(0.85) : .blue)
+            .fill(.blue)
             .overlay(
                 Text(label)
                     .font(.headline)
@@ -67,7 +71,24 @@ struct SudokuInputPadCell: View, InputPadCellProtocol {
     }
 }
 
-// MARK: - Example Custom Input Pad Cell (for .input(MyInputPad.self))
+struct SudokuGameCell: View, SudokuCellProtocol {
+    @Binding var isSelected: Bool
+    var text: String
+    var isFixed: Bool
+
+    var body: some View {
+        Rectangle()
+            .fill(isFixed ? .green : (isSelected ? .blue : .gray))
+            .overlay(
+                Text(text)
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .contentTransition(.numericText())
+            )
+    }
+}
+
+// MARK: - Example Custom Pad
 
 struct MyInputPad: View, InputPadCellProtocol {
     var label: String
@@ -81,7 +102,7 @@ struct MyInputPad: View, InputPadCellProtocol {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 10)
-                .fill(label == "Clear" ? .black.opacity(0.8) : .indigo)
+                .fill(.indigo)
                 .shadow(radius: 1, x: 0, y: 1)
             Text(label)
                 .font(.headline)
@@ -93,13 +114,43 @@ struct MyInputPad: View, InputPadCellProtocol {
     }
 }
 
-// MARK: - Grid View
+// MARK: - Number Pad (type-erased cell factory)
+
+struct SudokuNumberPad: View {
+    var makeCell: (String, @escaping () -> Void) -> AnyView
+    var onInput: (Int) -> Void
+    
+    private let rows: [[String]] = [
+        ["1","2","3"],
+        ["4","5","6"],
+        ["7","8","9"]
+    ]
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            ForEach(0..<rows.count, id: \.self) { r in
+                HStack(spacing: 8) {
+                    ForEach(rows[r], id: \.self) { label in
+                        makeCell(label) {
+                            onInput(Int(label)!)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Game View (optional external reset trigger)
 
 public struct SudokuGameView: View {
     // Config
     private var gridSpacing: CGFloat = 2.0
 
-    // Selection: only one at a time
+    // Optional external reset trigger (default nil)
+    @Binding private var resetTrigger: Bool?
+
+    // Selection
     @State private var selectedIndex: Int? = nil
 
     private let model: SudokuGameModel
@@ -107,32 +158,33 @@ public struct SudokuGameView: View {
     // Editable entries (nil means empty). Start with the initial grid.
     @State private var entries: [[Int?]] = []
     
-    init(model: SudokuGameModel) {
+    // MARK: - Init
+    // If caller doesn't provide a binding, it defaults to `.constant(nil)`
+    public init(model: SudokuGameModel, resetTrigger: Binding<Bool?> = .constant(nil)) {
         self.model = model
-        // entries will be initialized in .onAppear to avoid State-before-init warnings
+        self._resetTrigger = resetTrigger
     }
     
-    private var n: Int { model.grid.count }                                  // 9
-    private var m: Int { model.grid.first?.count ?? n }                      // 9
-    private var count: Int { n * m }                                         // 81
+    private var n: Int { model.grid.count }
+    private var m: Int { model.grid.first?.count ?? n }
+    private var count: Int { n * m }
     
-    // Type-erased factory (default to SudokuGameCell)
+    // Type-erased factories (default implementations)
     private var cellFactory: (_ index: Int, _ isSelected: Binding<Bool>, _ text: String, _ isFixed: Bool) -> AnyView =
     { _, isSelected, text, isFixed in
         AnyView(SudokuGameCell(isSelected: isSelected, text: text, isFixed: isFixed))
     }
 
-    // Input pad type-erased factory (default to SudokuInputPadCell)
     private var inputPadFactory: (_ label: String, _ onTap: @escaping () -> Void) -> AnyView =
     { label, onTap in
         AnyView(SudokuInputPadCell(label: label, onTap: onTap))
     }
 
-    // DELEGATE-LIKE CALLBACKS
+    // Callbacks
     private var onAppearCallback: (() -> Void)? = nil
     private var onDisappearCallback: (() -> Void)? = nil
     private var onInputCallback: ((_ row: Int, _ col: Int, _ value: Int?) -> Void)? = nil
-    private var onCompletionCallback: ((Bool) -> Void)? = nil  // ← now reports success/failure
+    private var onCompletionCallback: ((Bool) -> Void)? = nil
 
     // n×m with matching H/V spacing
     var columns: [GridItem] {
@@ -177,7 +229,7 @@ public struct SudokuGameView: View {
                             .frame(width: cellSize, height: cellSize)
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                guard !isFixed else { return } // ignore taps on fixed cells
+                                guard !isFixed else { return }
                                 withAnimation(.easeInOut(duration: 0.15)) {
                                     selectedIndex = (selectedIndex == index) ? nil : index
                                 }
@@ -186,21 +238,21 @@ public struct SudokuGameView: View {
                 }
                 // Thick 3×3 block borders overlay (only meaningful for 9×9)
                 .overlay {
-                        LazyVGrid(columns: overlayColumns, spacing: 0) {
-                            ForEach(0..<9, id: \.self) { _ in
-                                Rectangle()
-                                    .fill(.clear)
-                                    .frame(width: gp.size.width / 3, height: gp.size.width / 3)
-                                    .border(.black, width: 1.5)
-                            }
+                    LazyVGrid(columns: overlayColumns, spacing: 0) {
+                        ForEach(0..<9, id: \.self) { _ in
+                            Rectangle()
+                                .fill(.clear)
+                                .frame(width: gp.size.width / 3, height: gp.size.width / 3)
+                                .border(.black, width: 1.5)
                         }
-                        .border(.black, width: 2)
+                    }
+                    .border(.black, width: 2)
                 }
             }
             .aspectRatio(1, contentMode: .fit)
             .border(.black, width: 3)
             
-            // Number Pad (factory-driven)
+            // Number Pad (factory-driven, no Clear)
             SudokuNumberPad(
                 makeCell: inputPadFactory,
                 onInput: { number in
@@ -211,26 +263,14 @@ public struct SudokuGameView: View {
                     if model.grid[row][col] == nil {
                         entries[row][col] = number
                         onInputCallback?(row, col, number)
-                        // Only fire completion when grid is fully filled; then pass correctness
                         if isGridFilled() {
                             onCompletionCallback?(isCompleteCorrectly())
                         }
-                    }
-                },
-                onClear: {
-                    guard let idx = selectedIndex else { return }
-                    let row = idx / m
-                    let col = idx % m
-                    if model.grid[row][col] == nil {
-                        entries[row][col] = nil
-                        onInputCallback?(row, col, nil)
-                        // Do not call completion here; grid isn't full anymore
                     }
                 }
             )
         }
         .onAppear {
-            // initialize entries with the starting grid (nil where empty)
             if entries.isEmpty {
                 entries = model.grid
             }
@@ -239,11 +279,23 @@ public struct SudokuGameView: View {
         .onDisappear {
             onDisappearCallback?()
         }
+        // 🔁 External reset trigger (optional)
+        .onChange(of: resetTrigger) { newValue in
+            guard newValue == true else { return }
+            resetGrid()
+            // auto-clear the trigger so a subsequent `true` fires again
+            resetTrigger = false
+        }
     }
 
-    // MARK: - Modifiers
+    // MARK: - Public helper (in-view direct call if needed)
+    public func programmaticReset() {
+        resetGrid()
+    }
 
-    func grid<T: SudokuCellProtocol>(spacing: CGFloat, cell: T.Type) -> Self {
+    // MARK: - Modifiers (generic API, type-erased storage)
+
+    public func grid<T: SudokuCellProtocol>(spacing: CGFloat, cell: T.Type) -> Self {
         var copy = self
         copy.gridSpacing = spacing
         copy.cellFactory = { _, isSelected, text, isFixed in
@@ -252,8 +304,7 @@ public struct SudokuGameView: View {
         return copy
     }
 
-    // API: .input(MyInputPad.self)
-    func input<T: InputPadCellProtocol>(cell: T.Type) -> Self {
+    public func input<T: InputPadCellProtocol>(cell: T.Type) -> Self {
         var copy = self
         copy.inputPadFactory = { label, onTap in
             AnyView(T(label: label, onTap: onTap))
@@ -261,26 +312,25 @@ public struct SudokuGameView: View {
         return copy
     }
 
-    // Delegates-style callbacks
-    func onAppear(_ handler: @escaping () -> Void) -> Self {
+    public func onAppear(_ handler: @escaping () -> Void) -> Self {
         var copy = self
         copy.onAppearCallback = handler
         return copy
     }
 
-    func onDisappear(_ handler: @escaping () -> Void) -> Self {
+    public func onDisappear(_ handler: @escaping () -> Void) -> Self {
         var copy = self
         copy.onDisappearCallback = handler
         return copy
     }
 
-    func onInput(_ handler: @escaping (_ row: Int, _ col: Int, _ value: Int?) -> Void) -> Self {
+    public func onInput(_ handler: @escaping (_ row: Int, _ col: Int, _ value: Int?) -> Void) -> Self {
         var copy = self
         copy.onInputCallback = handler
         return copy
     }
 
-    func onCompletion(_ handler: @escaping (Bool) -> Void) -> Self {
+    public func onCompletion(_ handler: @escaping (Bool) -> Void) -> Self {
         var copy = self
         copy.onCompletionCallback = handler
         return copy
@@ -305,9 +355,14 @@ public struct SudokuGameView: View {
         }
         return true
     }
+    
+    private func resetGrid() {
+        entries = model.grid
+        selectedIndex = nil
+    }
 }
 
-// MARK: - Safe Indexing Helper
+// MARK: - Safe Indexing
 
 private extension Array {
     subscript(safe index: Int) -> Element? {
@@ -315,36 +370,13 @@ private extension Array {
     }
 }
 
-// MARK: - Preview
+// MARK: - Preview / Usage Examples
 
 #Preview {
-    VStack {
+    VStack(spacing: 16) {
+        // Example 1: No external reset (defaults to nil)
         SudokuGameView(model: .example)
             .grid(spacing: 1, cell: SudokuGameCell.self)
             .input(cell: MyInputPad.self)
-            .onAppear { print("🔵 appear") }
-            .onDisappear { print("🟠 disappear") }
-            .onInput { r, c, v in print("✏️ input (\(r),\(c)) =", v as Any) }
-            .onCompletion { success in
-                print(success ? "✅ completed (correct)" : "❌ completed (incorrect)")
-            }
-            .padding()
-    }
-}
-
-struct SudokuGameCell: View, SudokuCellProtocol {
-    @Binding var isSelected: Bool
-    var text: String
-    var isFixed: Bool
-
-    var body: some View {
-        Rectangle()
-            .fill(isFixed ? .green : (isSelected ? .blue : .gray))
-            .overlay(
-                Text(text)
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .contentTransition(.numericText())
-            )
     }
 }
