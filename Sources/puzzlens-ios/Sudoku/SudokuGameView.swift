@@ -1,96 +1,6 @@
 import SwiftUI
 
-// MARK: - Model
-
-public struct SudokuGameModel {
-    var grid: [[Int?]]
-    var solution: [[Int]]
-    
-    @MainActor public static let example: SudokuGameModel = .init(
-        grid: [
-            [nil, 3, 4, 6, 7, 8, 9, 1, 2],
-            [6, nil, 2, 1, 9, 5, 3, 4, 8],
-            [1, 9, 8, 3, 4, 2, 5, 6, 7],
-            
-            [8, 5, 9, 7, 6, 1, 4, 2, 3],
-            [4, 2, 6, 8, 5, 3, 7, 9, 1],
-            [7, 1, 3, 9, 2, 4, 8, 5, 6],
-            
-            [9, 6, 1, 5, 3, 7, 2, 8, 4],
-            [2, 8, 7, 4, 1, 9, 6, 3, 5],
-            [3, 4, 5, 2, 8, 6, 1, 7, 9]
-        ],
-        solution: [
-            [5, 3, 4, 6, 7, 8, 9, 1, 2],
-            [6, 7, 2, 1, 9, 5, 3, 4, 8],
-            [1, 9, 8, 3, 4, 2, 5, 6, 7],
-            
-            [8, 5, 9, 7, 6, 1, 4, 2, 3],
-            [4, 2, 6, 8, 5, 3, 7, 9, 1],
-            [7, 1, 3, 9, 2, 4, 8, 5, 6],
-            
-            [9, 6, 1, 5, 3, 7, 2, 8, 4],
-            [2, 8, 7, 4, 1, 9, 6, 3, 5],
-            [3, 4, 5, 2, 8, 6, 1, 7, 9]
-        ]
-    )
-}
-
-// MARK: - Protocols
-
-public protocol InputPadCellProtocol: View {
-    init(label: String, onTap: @escaping () -> Void)
-}
-
-public protocol SudokuCellProtocol: View {
-    init(isSelected: Binding<Bool>, text: String, isFixed: Bool)
-}
-
-// MARK: - Default Cells
-
-struct SudokuInputPadCell: View, InputPadCellProtocol {
-    var label: String
-    var onTap: () -> Void
-
-    init(label: String, onTap: @escaping () -> Void) {
-        self.label = label
-        self.onTap = onTap
-    }
-
-    var body: some View {
-        Rectangle()
-            .fill(.blue)
-            .overlay(
-                Text(label)
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding(.vertical, 8)
-            )
-            .onTapGesture { onTap() }
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-}
-
-struct SudokuGameCell: View, SudokuCellProtocol {
-    @Binding var isSelected: Bool
-    var text: String
-    var isFixed: Bool
-
-    var body: some View {
-        Rectangle()
-            .fill(isFixed ? .green : (isSelected ? .blue : .gray))
-            .overlay(
-                Text(text)
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .contentTransition(.numericText())
-            )
-    }
-}
-
-// MARK: - Example Custom Pad
-
-struct MyInputPad: View, InputPadCellProtocol {
+struct SudokuInputPad: View, InputPadCellProtocol {
     var label: String
     var onTap: () -> Void
 
@@ -114,35 +24,7 @@ struct MyInputPad: View, InputPadCellProtocol {
     }
 }
 
-// MARK: - Number Pad (type-erased cell factory)
-
-struct SudokuNumberPad: View {
-    var makeCell: (String, @escaping () -> Void) -> AnyView
-    var onInput: (Int) -> Void
-    
-    private let rows: [[String]] = [
-        ["1","2","3"],
-        ["4","5","6"],
-        ["7","8","9"]
-    ]
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            ForEach(0..<rows.count, id: \.self) { r in
-                HStack(spacing: 8) {
-                    ForEach(rows[r], id: \.self) { label in
-                        makeCell(label) {
-                            onInput(Int(label)!)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 // MARK: - Game View (optional external reset trigger)
-
 public struct SudokuGameView: View {
     // Config
     private var gridSpacing: CGFloat = 2.0
@@ -181,8 +63,6 @@ public struct SudokuGameView: View {
     }
 
     // Callbacks
-    private var onAppearCallback: (() -> Void)? = nil
-    private var onDisappearCallback: (() -> Void)? = nil
     private var onInputCallback: ((_ row: Int, _ col: Int, _ value: Int?) -> Void)? = nil
     private var onCompletionCallback: ((Bool) -> Void)? = nil
 
@@ -274,13 +154,9 @@ public struct SudokuGameView: View {
             if entries.isEmpty {
                 entries = model.grid
             }
-            onAppearCallback?()
-        }
-        .onDisappear {
-            onDisappearCallback?()
         }
         // 🔁 External reset trigger (optional)
-        .onChange(of: resetTrigger) { newValue in
+        .onChange(of: resetTrigger) { newValue, _ in
             guard newValue == true else { return }
             resetGrid()
             // auto-clear the trigger so a subsequent `true` fires again
@@ -309,18 +185,6 @@ public struct SudokuGameView: View {
         copy.inputPadFactory = { label, onTap in
             AnyView(T(label: label, onTap: onTap))
         }
-        return copy
-    }
-
-    public func onAppear(_ handler: @escaping () -> Void) -> Self {
-        var copy = self
-        copy.onAppearCallback = handler
-        return copy
-    }
-
-    public func onDisappear(_ handler: @escaping () -> Void) -> Self {
-        var copy = self
-        copy.onDisappearCallback = handler
         return copy
     }
 
@@ -377,6 +241,12 @@ private extension Array {
         // Example 1: No external reset (defaults to nil)
         SudokuGameView(model: .example)
             .grid(spacing: 1, cell: SudokuGameCell.self)
-            .input(cell: MyInputPad.self)
+            .input(cell: SudokuInputPad.self)
+            .onInput { row, col, value in
+                print("Input \(value) at \(row), \(col)")
+            }
+            .onCompletion { correct in
+                print("Completed \(correct ? "correct" : "incorrect")ly")
+            }
     }
 }
