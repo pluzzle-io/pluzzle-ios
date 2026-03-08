@@ -13,7 +13,7 @@ struct WordWheelSolutionCell: View, WordWheelSolutionCellProtocol {
             .font(.subheadline)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(Color.green.opacity(0.15))
+            .background(Color.orange.opacity(0.15))
             .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
