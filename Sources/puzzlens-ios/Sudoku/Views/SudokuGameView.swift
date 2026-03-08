@@ -1,30 +1,5 @@
 import SwiftUI
 
-struct SudokuInputPad: View, InputPadCellProtocol {
-    var label: String
-    var onTap: () -> Void
-
-    init(label: String, onTap: @escaping () -> Void) {
-        self.label = label
-        self.onTap = onTap
-    }
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(.indigo)
-                .shadow(radius: 1, x: 0, y: 1)
-            Text(label)
-                .font(.headline)
-                .foregroundColor(.white)
-                .padding(.vertical, 10)
-        }
-        .onTapGesture { onTap() }
-        .frame(height: 50)
-    }
-}
-
-// MARK: - Game View (optional external reset trigger)
 public struct SudokuGameView: View {
     // Config
     private var gridSpacing: CGFloat = 2.0
@@ -36,21 +11,21 @@ public struct SudokuGameView: View {
     @State private var selectedIndex: Int? = nil
 
     private let model: SudokuGameModel
-    
+
     // Editable entries (nil means empty). Start with the initial grid.
     @State private var entries: [[Int?]] = []
-    
+
     // MARK: - Init
     // If caller doesn't provide a binding, it defaults to `.constant(nil)`
     public init(model: SudokuGameModel, resetTrigger: Binding<Bool?> = .constant(nil)) {
         self.model = model
         self._resetTrigger = resetTrigger
     }
-    
+
     private var n: Int { model.grid.count }
     private var m: Int { model.grid.first?.count ?? n }
     private var count: Int { n * m }
-    
+
     // Type-erased factories (default implementations)
     private var cellFactory: (_ index: Int, _ isSelected: Binding<Bool>, _ text: String, _ isFixed: Bool) -> AnyView =
     { _, isSelected, text, isFixed in
@@ -70,7 +45,7 @@ public struct SudokuGameView: View {
     var columns: [GridItem] {
         Array(repeating: GridItem(.flexible(), spacing: gridSpacing), count: m)
     }
-    
+
     // 3×3 overlay blocks (for 9×9)
     var overlayColumns: [GridItem] {
         Array(repeating: GridItem(.flexible(), spacing: 0), count: 3)
@@ -83,18 +58,18 @@ public struct SudokuGameView: View {
                 let totalHSpacing = gridSpacing * CGFloat(m - 1)
                 let availableWidth = gp.size.width - totalHSpacing
                 let cellSize = availableWidth / CGFloat(m)
-                
+
                 LazyVGrid(columns: columns, spacing: gridSpacing) {
                     ForEach(0..<count, id: \.self) { index in
                         let row = index / m
                         let col = index % m
                         let fixedValue = model.grid[row][col]
                         let isFixed = fixedValue != nil
-                        
+
                         // show fixed value OR user entry
                         let displayValue = fixedValue ?? entries[safe: row]?[safe: col] ?? nil
                         let text = displayValue.map(String.init) ?? ""
-                        
+
                         // isSelected binding derived from selectedIndex; blocked for fixed cells
                         let isSelected = Binding<Bool>(
                             get: { selectedIndex == index },
@@ -131,7 +106,7 @@ public struct SudokuGameView: View {
             }
             .aspectRatio(1, contentMode: .fit)
             .border(.black, width: 3)
-            
+
             // Number Pad (factory-driven, no Clear)
             SudokuNumberPad(
                 makeCell: inputPadFactory,
@@ -155,7 +130,7 @@ public struct SudokuGameView: View {
                 entries = model.grid
             }
         }
-        // 🔁 External reset trigger (optional)
+        // External reset trigger (optional)
         .onChange(of: resetTrigger) { newValue, _ in
             guard newValue == true else { return }
             resetGrid()
@@ -219,34 +194,9 @@ public struct SudokuGameView: View {
         }
         return true
     }
-    
+
     private func resetGrid() {
         entries = model.grid
         selectedIndex = nil
-    }
-}
-
-// MARK: - Safe Indexing
-
-private extension Array {
-    subscript(safe index: Int) -> Element? {
-        indices.contains(index) ? self[index] : nil
-    }
-}
-
-// MARK: - Preview / Usage Examples
-
-#Preview {
-    VStack(spacing: 16) {
-        // Example 1: No external reset (defaults to nil)
-        SudokuGameView(model: .example)
-            .grid(spacing: 1, cell: SudokuGameCell.self)
-            .input(cell: SudokuInputPad.self)
-            .onInput { row, col, value in
-                print("Input \(value) at \(row), \(col)")
-            }
-            .onCompletion { correct in
-                print("Completed \(correct ? "correct" : "incorrect")ly")
-            }
     }
 }
