@@ -24,6 +24,8 @@ public struct WordWheelView: View {
         AnyView(WordWheelActionButton(label: label, onTap: onTap))
     }
 
+    private var solutionCellFactory: (_ word: String) -> AnyView
+
     // MARK: - Callbacks
 
     private var onWordSubmittedCallback: ((_ word: String, _ isValid: Bool) -> Void)? = nil
@@ -34,6 +36,7 @@ public struct WordWheelView: View {
     public init(model: WordWheelModel) {
         self.model = model
         self._foundWords = State(initialValue: model.currentAnswers.map { $0.lowercased() })
+        self.solutionCellFactory = { word in AnyView(WordWheelSolutionCell(word: word)) }
     }
 
     // MARK: - Derived
@@ -134,12 +137,7 @@ public struct WordWheelView: View {
             ScrollView {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 8) {
                     ForEach(foundWords.sorted(), id: \.self) { word in
-                        Text(word.capitalized)
-                            .font(.subheadline)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color.green.opacity(0.15))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        solutionCellFactory(word)
                     }
                 }
             }
@@ -199,6 +197,15 @@ public struct WordWheelView: View {
         var copy = self
         copy.actionButtonFactory = { label, onTap in
             AnyView(T(label: label, onTap: onTap))
+        }
+        return copy
+    }
+
+    /// Replace the default solution cell with a custom view conforming to `WordWheelSolutionCellProtocol`.
+    public func solutionCell<T: WordWheelSolutionCellProtocol>(cell: T.Type) -> Self {
+        var copy = self
+        copy.solutionCellFactory = { word in
+            AnyView(T(word: word))
         }
         return copy
     }
