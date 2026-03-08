@@ -21,6 +21,5 @@ let package = Package(
         .target(
             name: "PuzzlensSDK"
         ),
-
     ]
 )
