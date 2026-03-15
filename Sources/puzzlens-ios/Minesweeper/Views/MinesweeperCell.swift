@@ -1,5 +1,14 @@
 import SwiftUI
 
+/// The default cell view used by ``MinesweeperGameView``.
+///
+/// Renders each ``MinesweeperCellState`` with classic Minesweeper conventions:
+/// - **Hidden** — solid gray tile.
+/// - **Revealed(0)** — flat empty tile (no number).
+/// - **Revealed(1–8)** — flat tile with the adjacent-mine count in its classic colour (blue, green, red, …).
+/// - **Flagged** — gray tile with an orange flag icon.
+/// - **Exploded** — red tile with a danger icon (the mine the player tapped).
+/// - **Mine revealed** — muted tile with an outline danger icon (other mines shown at game over).
 public struct MinesweeperCell: MinesweeperCellProtocol {
     public let row: Int
     public let column: Int
@@ -13,7 +22,7 @@ public struct MinesweeperCell: MinesweeperCellProtocol {
 
     public var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 25)
+            RoundedRectangle(cornerRadius: 8)
                 .fill(backgroundColor)
             content
         }
@@ -56,6 +65,7 @@ public struct MinesweeperCell: MinesweeperCellProtocol {
         }
     }
 
+    /// Classic Minesweeper number colours (1 = blue … 8 = gray).
     private func numberColor(for count: Int) -> Color {
         switch count {
         case 1: return .blue

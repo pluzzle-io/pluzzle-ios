@@ -1,5 +1,30 @@
 import SwiftUI
 
+/// A SwiftUI view that runs a fully interactive Minesweeper game.
+///
+/// Configure the view with the builder modifiers before it is placed in the view hierarchy:
+///
+/// ```swift
+/// MinesweeperGameView(model: MinesweeperModel(rows: 9, columns: 9, mineCount: 10))
+///     .grid(spacing: 4, cell: MinesweeperCell.self)
+///     .onInput { coord, score in
+///         print("Revealed (\(coord.row), \(coord.col)) — score: \(score)")
+///     }
+///     .onCompletion { didWin in
+///         print(didWin ? "You cleared the board!" : "Boom!")
+///     }
+/// ```
+///
+/// ### Interactions
+/// - **Tap** a hidden cell to reveal it. If it has zero adjacent mines the reveal flood-fills outward automatically.
+/// - **Long-press** a hidden cell to plant a flag; long-press again to remove it. Flagged cells cannot be revealed by tap.
+///
+/// ### Scoring
+/// Each safely revealed cell awards one point. The cumulative score is reported through ``onInput(_:)`` after every reveal.
+///
+/// ### Mine placement
+/// If `MinesweeperModel.mines` is empty the view generates mines on the player's first tap, ensuring that cell and
+/// all its immediate neighbors are mine-free.
 public struct MinesweeperGameView: View {
 
     private let model: MinesweeperModel
@@ -13,6 +38,8 @@ public struct MinesweeperGameView: View {
     @State private var score: Int
     @State private var isGameOver: Bool
 
+    /// Creates a new game view with the given model.
+    /// Apply `.grid()`, `.onInput()`, and `.onCompletion()` modifiers before inserting into the hierarchy.
     public init(model: MinesweeperModel) {
         self.model = model
         self.cellFactory = { row, col, state in
@@ -45,6 +72,11 @@ public struct MinesweeperGameView: View {
 
     // MARK: - Modifiers
 
+    /// Sets the cell spacing and registers a custom cell type for the grid.
+    ///
+    /// - Parameters:
+    ///   - spacing: Points of space between adjacent cells.
+    ///   - cell: A type conforming to ``MinesweeperCellProtocol`` used to render each grid cell.
     public func grid<T: MinesweeperCellProtocol>(spacing: CGFloat, cell: T.Type) -> Self {
         var copy = self
         copy.gridSpacing = spacing
@@ -52,14 +84,22 @@ public struct MinesweeperGameView: View {
         return copy
     }
 
-    /// Fires each time a safe cell is revealed, with the cell's coordinate and cumulative score.
+    /// Registers a handler that fires each time a safe cell is revealed.
+    ///
+    /// When a single tap triggers a flood-fill, the handler is called once per revealed cell in
+    /// BFS order, each time with the updated cumulative `score`.
+    ///
+    /// - Parameter handler: Receives the revealed cell's coordinate and the current total score.
     public func onInput(_ handler: @escaping (_ coord: MinesweeperCoord, _ score: Int) -> Void) -> Self {
         var copy = self
         copy.onInputCallback = handler
         return copy
     }
 
-    /// Fires when the game ends. `didWin` is `true` if all safe cells were revealed, `false` if a mine was hit.
+    /// Registers a handler that fires once when the game ends.
+    ///
+    /// - Parameter handler: Receives `true` when all safe cells have been revealed (win),
+    ///   or `false` when the player tapped a mine (loss).
     public func onCompletion(_ handler: @escaping (_ didWin: Bool) -> Void) -> Self {
         var copy = self
         copy.onCompletionCallback = handler
