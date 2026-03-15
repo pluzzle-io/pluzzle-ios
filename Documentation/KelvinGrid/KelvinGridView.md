@@ -1,6 +1,6 @@
 # KelvinGridView
 
-`KelvinGridView` is a self-contained SwiftUI view that renders a fully interactive word-guessing puzzle. The player uses an on-screen QWERTY keyboard to fill rows of the grid one letter at a time. When a row is submitted, each cell is coloured according to a heat-map that shows how close the guess was to the target word. It handles input, evaluation, and game-over detection out of the box. Its appearance can be customised through a chainable modifier API.
+`KelvinGridView` is a self-contained SwiftUI view that renders a fully interactive word-guessing puzzle. The player uses an on-screen QWERTY keyboard to fill rows of the grid one letter at a time. When a row is submitted, each cell is coloured to show whether the letter is correct, misplaced, or wrong (with a signed alphabetical-distance hint). It handles input, evaluation, and game-over detection out of the box. Its appearance can be customised through a chainable modifier API.
 
 ---
 
@@ -34,13 +34,14 @@ var body: some View {
 1. The player taps letters on the QWERTY keyboard to fill the current row.
 2. Tapping **⌫** removes the last letter.
 3. Once all columns are filled the row is submitted automatically and cell colouring is applied.
-4. Each submitted cell is coloured based on the following heat-map rules:
+4. Each submitted cell is coloured based on the following rules:
 
 | Colour | Condition |
 |---|---|
 | **Green** | The letter is in the target word **and** in the correct position. |
-| **Red** | The letter is in the target word but at a **different** position. |
-| **Dark gray** | The letter is not in the word and more than 5 alphabetical steps from the correct letter. |
+| **Orange** | The letter is in the target word but at a **different** position. |
+| **Gray + offset** | The letter is not in the word. A small label (e.g. `+3` or `−2`) shows the signed alphabetical distance from the correct letter: positive means the guessed letter comes *after* the correct one in the alphabet, negative means *before*. |
+| **Gray outlined** | The cell is empty or has a pending (unsubmitted) letter. |
 
 5. The game ends when the player guesses the word (all cells green) or exhausts all attempts.
 
@@ -78,12 +79,14 @@ public protocol KelvinGridCellProtocol: View {
 
 ```swift
 public enum KelvinCellState: Equatable, Hashable {
-    case empty      // No letter typed.
-    case pending    // Letter typed but row not yet submitted.
-    case correct    // Green — right letter, right position.
-    case misplaced  // Red — right letter, wrong position.
-    case warm(Int)  // Yellow-to-gray — not in word; Int is alphabetical distance (1–5).
-    case cold       // Dark gray — not in word and > 5 steps away alphabetically.
+    case empty       // No letter typed. Displayed as a gray outlined cell.
+    case pending     // Letter typed but row not yet submitted. Displayed as a gray outlined cell.
+    case correct     // Green — right letter, right position.
+    case misplaced   // Orange — right letter, wrong position.
+    case wrong(Int)  // Gray — letter not in word. Int is the signed alphabetical offset
+                     // (guessLetter − correctLetter): positive = guessed letter comes after
+                     // the correct letter in the alphabet; negative = comes before.
+                     // Displayed with a small "+N" / "−N" label on the cell.
 }
 ```
 
@@ -105,28 +108,39 @@ struct MyCustomCell: View, KelvinGridCellProtocol {
         ZStack {
             RoundedRectangle(cornerRadius: 8)
                 .fill(background)
-            Text(letter)
-                .font(.title2.bold())
-                .foregroundStyle(.white)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(borderColor, lineWidth: 1.5)
+                )
+            if case .wrong(let offset) = state {
+                VStack(spacing: 1) {
+                    Text(letter)
+                        .font(.title2.bold())
+                        .foregroundStyle(.white)
+                    Text(offset >= 0 ? "+\(offset)" : "\(offset)")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(Color.white.opacity(0.85))
+                }
+            } else {
+                Text(letter)
+                    .font(.title2.bold())
+                    .foregroundStyle(letter.isEmpty ? .clear : .white)
+            }
         }
     }
 
     private var background: Color {
         switch state {
-        case .empty:          return .clear
-        case .pending:        return Color(.systemGray6)
-        case .correct:        return .green
-        case .misplaced:      return .red
-        case .warm(let d):
-            let fraction = Double(d - 1) / 4.0
-            return Color(red: 1.0 - fraction * 0.4, green: 0.5 + fraction * 0.1, blue: fraction * 0.6)
-        case .cold:           return Color(.systemGray3)
+        case .empty, .pending: return Color(.systemGray5)
+        case .correct:         return .green
+        case .misplaced:       return .orange
+        case .wrong:           return Color(.systemGray2)
         }
     }
 
     private var borderColor: Color {
         switch state {
-        case .empty, .pending: return isActiveRow ? Color.accentColor : Color(.systemGray4)
+        case .empty, .pending: return isActiveRow ? Color.accentColor : Color(.systemGray3)
         default:               return .clear
         }
     }
