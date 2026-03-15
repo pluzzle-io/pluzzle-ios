@@ -6,13 +6,11 @@ public enum KelvinCellState: Equatable, Hashable {
     case pending
     /// The letter is correct and in the correct position. Displayed in green.
     case correct
-    /// The letter appears in the target word but at a different position. Displayed in red.
+    /// The letter appears in the target word but at a different position. Displayed in orange.
     case misplaced
-    /// The letter is not in the target word but is within `distance` alphabetical steps
-    /// of the correct letter for this position (1 ≤ distance ≤ 5).
-    /// Displayed in a shade interpolated from yellow (close) to gray (far).
-    case warm(Int)
-    /// The letter is not in the target word and is more than 5 alphabetical steps
-    /// from the correct letter for this position. Displayed in dark gray.
-    case cold
+    /// The letter is not in the target word.
+    /// `offset` is the signed alphabetical distance from the correct letter:
+    /// positive means the guessed letter comes *after* the correct letter in the alphabet,
+    /// negative means it comes *before*. Displayed in gray with a `+N` / `−N` hint.
+    case wrong(Int)
 }

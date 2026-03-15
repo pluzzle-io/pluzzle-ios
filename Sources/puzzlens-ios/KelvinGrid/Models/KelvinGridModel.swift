@@ -24,17 +24,17 @@ public struct KelvinGridModel {
     /// Evaluates a guess against the target word and returns a `KelvinCellState` for each position.
     ///
     /// Evaluation rules (applied in priority order):
-    /// 1. **Green** (`.correct`)  — letter matches the target letter at this position.
-    /// 2. **Red** (`.misplaced`) — letter exists in the target word but at a different position.
-    /// 3. **Warm** (`.warm(d)`)  — letter is not in the word but is within 5 alphabetical steps
-    ///    of the correct letter for this position; `d` is the distance (1–5).
-    /// 4. **Cold** (`.cold`)     — letter is not in the word and more than 5 steps away alphabetically.
+    /// 1. **Green** (`.correct`)   — letter matches the target letter at this position.
+    /// 2. **Orange** (`.misplaced`) — letter exists in the target word but at a different position.
+    /// 3. **Gray** (`.wrong(offset)`) — letter is not in the word; `offset` is the signed
+    ///    alphabetical distance (`guessLetter − correctLetter`): positive means the guessed letter
+    ///    comes after the correct letter in the alphabet, negative means before.
     public static func evaluate(guess: String, target: String) -> [KelvinCellState] {
         let guessChars = Array(guess.uppercased())
         let targetChars = Array(target.uppercased())
         let count = min(guessChars.count, targetChars.count)
 
-        var result = Array(repeating: KelvinCellState.cold, count: count)
+        var result = Array(repeating: KelvinCellState.wrong(0), count: count)
         var targetUsed = Array(repeating: false, count: count)
         var guessUsed = Array(repeating: false, count: count)
 
@@ -57,12 +57,12 @@ public struct KelvinGridModel {
             }
         }
 
-        // Pass 3: warm / cold for remaining
+        // Pass 3: wrong — compute signed alphabetical offset (guess − target)
         for i in 0..<count where !guessUsed[i] {
             guard let guessVal = guessChars[i].asciiValue,
                   let targetVal = targetChars[i].asciiValue else { continue }
-            let distance = abs(Int(guessVal) - Int(targetVal))
-            result[i] = distance <= 5 ? .warm(distance) : .cold
+            let offset = Int(guessVal) - Int(targetVal)
+            result[i] = .wrong(offset)
         }
 
         return result

@@ -16,8 +16,8 @@ import SwiftUI
 /// ### Interactions
 /// - Tap letters on the QWERTY keyboard to fill the current row.
 /// - Tap **⌫** to delete the last letter. Rows auto-submit when full.
-/// - Each submitted cell is coloured by a heat map: green = correct position,
-///   red = wrong position, warm/cold gradient = alphabetical distance.
+/// - Each submitted cell is coloured: green = correct position, orange = wrong position,
+///   gray = incorrect letter (shows signed alphabetical offset, e.g. `+3` or `−2`).
 ///
 /// ### Session restore
 /// Pass previously submitted guesses via `KelvinGridModel.currentGuesses` to restore
@@ -83,10 +83,10 @@ public struct KelvinGridView: View {
     public var body: some View {
         VStack(spacing: 16) {
             gridView
-            Spacer()
             if !isGameOver {
                 keyboardView
             }
+            Spacer()
         }
         .padding()
     }
@@ -122,7 +122,7 @@ public struct KelvinGridView: View {
         if row < submittedGuesses.count {
             let chars = Array(submittedGuesses[row])
             let letter = col < chars.count ? String(chars[col]) : ""
-            let state = submittedStates[row][safe: col] ?? .cold
+            let state = submittedStates[row][safe: col] ?? .wrong(0)
             return (letter, state)
         } else if row == submittedGuesses.count && !isGameOver {
             let letter = currentInput[safe: col] ?? ""

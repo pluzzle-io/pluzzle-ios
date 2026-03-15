@@ -3,11 +3,11 @@ import SwiftUI
 /// The default cell used by `KelvinGridView`.
 ///
 /// Colour scheme:
-/// - **Green**   — correct letter, correct position (`.correct`).
-/// - **Red**     — correct letter, wrong position (`.misplaced`).
-/// - **Orange → Gray** — letter not in word; full orange at distance 1, fading toward gray at distance 5 (`.warm`).
-/// - **Dark gray** — letter not in word and far alphabetically (`.cold`).
-/// - **White/outlined** — empty or pending (unsubmitted letter).
+/// - **Green**         — correct letter, correct position (`.correct`).
+/// - **Orange**        — correct letter, wrong position (`.misplaced`).
+/// - **Gray + offset** — letter not in word (`.wrong(offset)`); shows `+N` or `−N`
+///   indicating how many alphabetical steps the guessed letter is above or below the correct one.
+/// - **Gray outlined** — empty or pending (unsubmitted letter).
 ///
 /// When `isActiveRow` is `true` the border is rendered in the accent colour to indicate
 /// that this row is currently being typed.
@@ -30,25 +30,37 @@ struct KelvinGridCell: View, KelvinGridCellProtocol {
                     RoundedRectangle(cornerRadius: 6)
                         .strokeBorder(borderColor, lineWidth: borderWidth)
                 )
-            Text(letter)
-                .font(.title2.bold())
-                .foregroundStyle(foregroundColor)
+            if case .wrong(let offset) = state {
+                VStack(spacing: 1) {
+                    Text(letter)
+                        .font(.title2.bold())
+                        .foregroundStyle(Color.white)
+                    Text(offsetLabel(offset))
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(Color.white.opacity(0.85))
+                }
+            } else {
+                Text(letter)
+                    .font(.title2.bold())
+                    .foregroundStyle(foregroundColor)
+            }
         }
+    }
+
+    private func offsetLabel(_ offset: Int) -> String {
+        offset >= 0 ? "+\(offset)" : "\(offset)"
     }
 
     private var backgroundColor: Color {
         switch state {
         case .empty, .pending:
-            return Color(.systemBackground)
+            return Color(.systemGray5)
         case .correct:
-            return .red
+            return .green
         case .misplaced:
-            return .yellow
-        case .warm(let distance):
-            // (distance=1) → (distance=5)
-            return .yellow.opacity(0.6)
-        case .cold:
-            return Color(.systemGray3)
+            return .orange
+        case .wrong:
+            return Color(.systemGray2)
         }
     }
 
@@ -63,7 +75,7 @@ struct KelvinGridCell: View, KelvinGridCellProtocol {
     private var borderColor: Color {
         switch state {
         case .empty, .pending:
-            return isActiveRow ? Color.accentColor : Color(.systemGray4)
+            return isActiveRow ? Color.accentColor : Color(.systemGray3)
         default:
             return .clear
         }
