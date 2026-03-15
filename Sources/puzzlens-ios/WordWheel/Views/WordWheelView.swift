@@ -1,5 +1,27 @@
 import SwiftUI
 
+/// A SwiftUI view that presents a fully interactive Word Wheel puzzle.
+///
+/// Provide a ``WordWheelModel`` and optionally chain builder modifiers before inserting
+/// the view into the hierarchy:
+///
+/// ```swift
+/// WordWheelView(model: model)
+///     .letterCell(cell: MyTile.self)
+///     .actionButton(cell: MyButton.self)
+///     .solutionCell(cell: MySolutionCell.self)
+///     .onWordSubmitted { word, isValid in print(isValid ? "✓" : "✗") }
+///     .onCompletion { showAlert = true }
+/// ```
+///
+/// ### Interactions
+/// - **Tap** letter tiles to spell a word; each physical tile can only be used once per attempt.
+/// - The centre main letter tile is always available.
+/// - Tap **Submit** to validate the current word, **Delete** to remove the last letter,
+///   or **Clear** to reset the attempt.
+///
+/// ### Completion
+/// ``onCompletion()`` fires once every word in `acceptableAnswers` has been found.
 public struct WordWheelView: View {
     private let model: WordWheelModel
 

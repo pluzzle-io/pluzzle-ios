@@ -1,5 +1,9 @@
 import Foundation
 
+/// The data model for a Word Wheel puzzle.
+///
+/// Describes the centre letter, the surrounding wheel letters, the full set of acceptable
+/// answers, and any words already found in a restored session.
 public struct WordWheelModel {
     /// The letter at the centre of the wheel. Every valid word must contain this letter.
     public var mainLetter: String

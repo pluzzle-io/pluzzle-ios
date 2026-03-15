@@ -1,7 +1,10 @@
 import Foundation
 
+/// The data model for a Sudoku puzzle, containing the starting grid and its solution.
 public struct SudokuGameModel {
+    /// The puzzle's starting state. Pre-filled cells use `Int` values (1–9); empty cells are `nil`.
     var grid: [[Int?]]
+    /// The complete, correct solution. Every cell must contain an `Int` value (1–9).
     var solution: [[Int]]
 
     @MainActor public static let example: SudokuGameModel = .init(

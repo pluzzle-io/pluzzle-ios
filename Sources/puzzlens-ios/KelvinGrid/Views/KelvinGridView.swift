@@ -1,5 +1,27 @@
 import SwiftUI
 
+/// A SwiftUI view that presents a fully interactive word-guessing puzzle (Wordle-style).
+///
+/// Provide a ``KelvinGridModel`` and optionally chain builder modifiers before inserting
+/// the view into the hierarchy:
+///
+/// ```swift
+/// KelvinGridView(model: model)
+///     .grid(spacing: 8, cell: MyCell.self)
+///     .input(cell: MyKey.self)
+///     .onInput { guess, states in print(guess) }
+///     .onCompletion { didWin in showResult = true }
+/// ```
+///
+/// ### Interactions
+/// - Tap letters on the QWERTY keyboard to fill the current row.
+/// - Tap **⌫** to delete the last letter. Rows auto-submit when full.
+/// - Each submitted cell is coloured by a heat map: green = correct position,
+///   red = wrong position, warm/cold gradient = alphabetical distance.
+///
+/// ### Session restore
+/// Pass previously submitted guesses via `KelvinGridModel.currentGuesses` to restore
+/// an in-progress game. All restored rows are evaluated and coloured automatically.
 public struct KelvinGridView: View {
     private let model: KelvinGridModel
     private var gridSpacing: CGFloat = 8

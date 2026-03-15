@@ -1,5 +1,25 @@
 import SwiftUI
 
+/// A SwiftUI view that presents a fully interactive Sudoku puzzle.
+///
+/// Provide a ``SudokuGameModel`` and optionally chain builder modifiers before inserting
+/// the view into the hierarchy:
+///
+/// ```swift
+/// SudokuGameView(model: model)
+///     .grid(spacing: 2, cell: MyCell.self)
+///     .input(cell: MyPadButton.self)
+///     .onInput { row, col, value in print("Entered \(value ?? 0)") }
+///     .onCompletion { isCorrect in showResult = true }
+/// ```
+///
+/// ### Interactions
+/// - **Tap** an editable cell to select it, then tap a number on the pad below to fill it.
+/// - Pass a `Binding<Bool?>` `resetTrigger` to programmatically reset the board from outside.
+///
+/// ### Completion
+/// ``onCompletion(_:)`` fires once every cell is filled.
+/// The `Bool` argument is `true` only when all entries match the solution.
 public struct SudokuGameView: View {
     // Config
     private var gridSpacing: CGFloat = 2.0
@@ -146,6 +166,10 @@ public struct SudokuGameView: View {
 
     // MARK: - Modifiers (generic API, type-erased storage)
 
+    /// Sets the cell spacing and registers a custom cell type for the grid.
+    /// - Parameters:
+    ///   - spacing: Points of space between adjacent cells.
+    ///   - cell: A type conforming to ``SudokuCellProtocol`` used to render each grid cell.
     public func grid<T: SudokuCellProtocol>(spacing: CGFloat, cell: T.Type) -> Self {
         var copy = self
         copy.gridSpacing = spacing
@@ -155,6 +179,8 @@ public struct SudokuGameView: View {
         return copy
     }
 
+    /// Registers a custom number button type for the input pad.
+    /// - Parameter cell: A type conforming to ``InputPadCellProtocol``.
     public func input<T: InputPadCellProtocol>(cell: T.Type) -> Self {
         var copy = self
         copy.inputPadFactory = { label, onTap in
@@ -163,12 +189,16 @@ public struct SudokuGameView: View {
         return copy
     }
 
+    /// Registers a handler called each time the player places a number in a cell.
+    /// - Parameter handler: Receives the zero-based row index, column index, and the entered value (1–9).
     public func onInput(_ handler: @escaping (_ row: Int, _ col: Int, _ value: Int?) -> Void) -> Self {
         var copy = self
         copy.onInputCallback = handler
         return copy
     }
 
+    /// Registers a handler called once all cells are filled.
+    /// - Parameter handler: Receives `true` if every entry matches the solution, `false` otherwise.
     public func onCompletion(_ handler: @escaping (Bool) -> Void) -> Self {
         var copy = self
         copy.onCompletionCallback = handler
