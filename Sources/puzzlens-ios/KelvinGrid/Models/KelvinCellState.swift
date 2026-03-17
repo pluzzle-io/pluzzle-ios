@@ -1,5 +1,5 @@
 /// Represents the evaluation state of a single cell in a KelvinGrid row.
-public enum KelvinCellState: Equatable, Hashable {
+public enum KelvinCellState: Equatable, Hashable, Sendable {
     /// No letter has been typed.
     case empty
     /// A letter has been typed but the row has not been submitted yet.

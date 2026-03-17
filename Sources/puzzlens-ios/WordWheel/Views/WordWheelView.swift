@@ -27,11 +27,11 @@ public struct WordWheelView: View {
 
     // MARK: - State
 
-    /// Ordered list of wheel positions selected for the current word.
-    /// -1 = main letter, 0...n = index into model.letters.
+    /// Ordered list of wheel positions selected for the current word attempt.
+    /// `-1` represents the main/centre letter; values `0...n` are indices into `model.letters`.
     @State private var wordPositions: [Int] = []
 
-    /// Words successfully found so far. Pre-seeded from model.currentAnswers.
+    /// Words successfully found so far. Pre-seeded from `model.currentAnswers` on init.
     @State private var foundWords: [String] = []
 
     // MARK: - Factories (default implementations)
@@ -55,6 +55,13 @@ public struct WordWheelView: View {
 
     // MARK: - Init
 
+    /// Creates a new Word Wheel view with the given model.
+    ///
+    /// Apply `.letterCell(cell:)`, `.actionButton(cell:)`, `.solutionCell(cell:)`,
+    /// `.onWordSubmitted(_:)`, and `.onCompletion(_:)` modifiers before inserting
+    /// the view into the hierarchy.
+    ///
+    /// - Parameter model: The ``WordWheelModel`` defining the puzzle letters and acceptable answers.
     public init(model: WordWheelModel) {
         self.model = model
         self._foundWords = State(initialValue: model.currentAnswers.map { $0.lowercased() })

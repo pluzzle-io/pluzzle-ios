@@ -1,7 +1,7 @@
 import Foundation
 
 /// The display state of a single cell in a Minesweeper grid.
-public enum MinesweeperCellState: Equatable, Hashable {
+public enum MinesweeperCellState: Equatable, Hashable, Sendable {
     /// The cell has not been revealed or flagged yet.
     case hidden
 

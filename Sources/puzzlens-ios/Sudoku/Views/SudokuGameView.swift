@@ -21,22 +21,32 @@ import SwiftUI
 /// ``onCompletion(_:)`` fires once every cell is filled.
 /// The `Bool` argument is `true` only when all entries match the solution.
 public struct SudokuGameView: View {
-    // Config
+    // MARK: - Configuration
+
     private var gridSpacing: CGFloat = 2.0
 
-    // Optional external reset trigger (default nil)
+    /// Optional external reset trigger. Set to `true` from outside the view to reset the board;
+    /// the view automatically resets the value back to `false` after processing.
     @Binding private var resetTrigger: Bool?
 
-    // Selection
+    // MARK: - State
+
     @State private var selectedIndex: Int? = nil
 
     private let model: SudokuGameModel
 
-    // Editable entries (nil means empty). Start with the initial grid.
+    /// The player's current entries. `nil` means the cell is empty.
     @State private var entries: [[Int?]] = []
 
     // MARK: - Init
-    // If caller doesn't provide a binding, it defaults to `.constant(nil)`
+
+    /// Creates a new Sudoku game view.
+    ///
+    /// - Parameters:
+    ///   - model: The puzzle definition (starting grid and solution).
+    ///   - resetTrigger: An optional binding you can flip to `true` to programmatically
+    ///     reset the board. The view resets the value to `false` after processing.
+    ///     Defaults to `.constant(nil)` (no external reset).
     public init(model: SudokuGameModel, resetTrigger: Binding<Bool?> = .constant(nil)) {
         self.model = model
         self._resetTrigger = resetTrigger
@@ -61,12 +71,12 @@ public struct SudokuGameView: View {
     private var onInputCallback: ((_ row: Int, _ col: Int, _ value: Int?) -> Void)? = nil
     private var onCompletionCallback: ((Bool) -> Void)? = nil
 
-    // n×m with matching H/V spacing
+    /// Grid items for the n×m cell layout, with uniform horizontal spacing.
     var columns: [GridItem] {
         Array(repeating: GridItem(.flexible(), spacing: gridSpacing), count: m)
     }
 
-    // 3×3 overlay blocks (for 9×9)
+    /// Grid items for the 3×3 box-border overlay (only visually meaningful on a 9×9 grid).
     var overlayColumns: [GridItem] {
         Array(repeating: GridItem(.flexible(), spacing: 0), count: 3)
     }
@@ -151,7 +161,7 @@ public struct SudokuGameView: View {
             }
         }
         // External reset trigger (optional)
-        .onChange(of: resetTrigger) { newValue, _ in
+        .onChange(of: resetTrigger) { _, newValue in
             guard newValue == true else { return }
             resetGrid()
             // auto-clear the trigger so a subsequent `true` fires again
@@ -159,7 +169,10 @@ public struct SudokuGameView: View {
         }
     }
 
-    // MARK: - Public helper (in-view direct call if needed)
+    // MARK: - Public Helpers
+
+    /// Resets all player entries and clears the selection, returning the board to
+    /// its initial state. Prefer using the `resetTrigger` binding from outside the view.
     public func programmaticReset() {
         resetGrid()
     }

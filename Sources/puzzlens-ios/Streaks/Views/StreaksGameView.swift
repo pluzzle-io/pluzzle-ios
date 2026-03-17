@@ -30,6 +30,12 @@ public struct StreaksGameView: View {
 
     // MARK: - Init
 
+    /// Creates a new Streaks game view with the given model.
+    ///
+    /// Apply `.grid(spacing:cell:)`, `.onInput(_:)`, and `.onCompletion(_:)` modifiers before
+    /// inserting the view into the hierarchy.
+    ///
+    /// - Parameter model: The ``StreaksModel`` defining the grid dimensions and blocked cells.
     public init(model: StreaksModel) {
         self.model = model
         _cellStates = State(initialValue:

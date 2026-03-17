@@ -6,9 +6,9 @@ import SwiftUI
         .theme(VoxelTheme(
             playerOne: .indigo,
             playerTwo: .orange,
-            seed: Color(.green),
-            ghost: Color(.black).opacity(0.5),
-            win: Color(.red)
+            seed: .green,
+            ghost: .black.opacity(0.5),
+            win: .red
         ))
         .onInput { coord, player in
             let name = player == .one ? "Indigo" : "Orange"

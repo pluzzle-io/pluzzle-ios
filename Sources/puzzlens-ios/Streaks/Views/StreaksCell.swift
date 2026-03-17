@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// Default Streaks cell view.
+/// The default cell view used by ``StreaksGameView``.
 ///
-/// Unselected cells are rendered in a neutral gray.
-/// Selected cells fill with the accent colour and display their 1-based
-/// position in the current path.
+/// Colour scheme:
+/// - **Gray (light)**  — unselected; available to be added to the path.
+/// - **Accent colour** — selected; shows its 1-based position in the current path.
+/// - **Gray (dark)**   — blocked; permanently impassable, marked with an `xmark` icon.
 struct StreaksCell: View, StreaksCellProtocol {
     var row: Int
     var column: Int

@@ -2,17 +2,37 @@ import Foundation
 
 /// The data model for a KelvinGrid puzzle.
 ///
-/// - `targetWord`    — The word the player is trying to guess (always uppercased internally).
-/// - `maxAttempts`   — Maximum number of guess rows (default: 6).
-/// - `currentGuesses`— Previously submitted guesses, used to restore a saved session.
+/// Pass a `KelvinGridModel` to ``KelvinGridView`` to define the target word, attempt limit,
+/// and any previously submitted guesses for session restore.
+///
+/// ```swift
+/// // Fresh game
+/// let model = KelvinGridModel(targetWord: "SWIFT", maxAttempts: 6)
+///
+/// // Restore a saved session
+/// let model = KelvinGridModel(
+///     targetWord: "SWIFT",
+///     maxAttempts: 6,
+///     currentGuesses: ["CRANE", "SHIRT"]
+/// )
+/// ```
 public struct KelvinGridModel {
+    /// The word the player is trying to guess. Always stored uppercased.
     public let targetWord: String
+    /// Maximum number of guess rows (default: `6`).
     public let maxAttempts: Int
+    /// Previously submitted guesses, used to restore a saved session.
     public var currentGuesses: [String]
 
-    /// Number of columns in the grid — equal to the length of `targetWord`.
+    /// Number of columns in the grid — equal to the character count of `targetWord`.
     public var columns: Int { targetWord.count }
 
+    /// Creates a new KelvinGrid model.
+    ///
+    /// - Parameters:
+    ///   - targetWord: The word the player must guess. Stored uppercased.
+    ///   - maxAttempts: Maximum number of rows available to the player. Defaults to `6`.
+    ///   - currentGuesses: Any previously submitted guesses to restore. Defaults to empty.
     public init(targetWord: String, maxAttempts: Int = 6, currentGuesses: [String] = []) {
         self.targetWord = targetWord.uppercased()
         self.maxAttempts = maxAttempts
@@ -70,7 +90,7 @@ public struct KelvinGridModel {
 
     // MARK: - Example
 
-    /// A ready-made puzzle for use in previews and testing.
+    /// A ready-made 5-letter puzzle with 5 attempts, for use in previews and testing.
     @MainActor public static let example = KelvinGridModel(
         targetWord: "USMAN",
         maxAttempts: 5

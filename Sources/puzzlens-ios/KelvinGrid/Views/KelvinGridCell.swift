@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The default cell used by `KelvinGridView`.
+/// The default cell used by ``KelvinGridView``.
 ///
 /// Colour scheme:
 /// - **Green**         — correct letter, correct position (`.correct`).

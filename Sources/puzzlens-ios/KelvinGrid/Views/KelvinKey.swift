@@ -1,6 +1,9 @@
 import SwiftUI
 
-/// The default on-screen keyboard key used by `KelvinGridView`.
+/// The default on-screen keyboard key used by ``KelvinGridView``.
+///
+/// Renders as a rounded rectangular button filled with `systemGray5`,
+/// displaying the key label in the primary text colour.
 struct KelvinKey: View, KelvinKeyProtocol {
     var label: String
     var onTap: () -> Void

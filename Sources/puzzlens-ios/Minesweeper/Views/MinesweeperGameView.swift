@@ -39,7 +39,11 @@ public struct MinesweeperGameView: View {
     @State private var isGameOver: Bool
 
     /// Creates a new game view with the given model.
-    /// Apply `.grid()`, `.onInput()`, and `.onCompletion()` modifiers before inserting into the hierarchy.
+    ///
+    /// Apply `.grid(spacing:cell:)`, `.onInput(_:)`, and `.onCompletion(_:)` modifiers before
+    /// inserting the view into the hierarchy.
+    ///
+    /// - Parameter model: The ``MinesweeperModel`` that defines the grid dimensions and mine count.
     public init(model: MinesweeperModel) {
         self.model = model
         self.cellFactory = { row, col, state in

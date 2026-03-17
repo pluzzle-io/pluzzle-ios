@@ -53,6 +53,12 @@ public struct KelvinGridView: View {
 
     // MARK: - Init
 
+    /// Creates a new KelvinGrid view with the given model.
+    ///
+    /// Apply `.grid(spacing:cell:)`, `.input(cell:)`, `.onInput(_:)`, and `.onCompletion(_:)`
+    /// modifiers before inserting the view into the hierarchy.
+    ///
+    /// - Parameter model: The ``KelvinGridModel`` defining the target word and attempt limit.
     public init(model: KelvinGridModel) {
         self.model = model
 

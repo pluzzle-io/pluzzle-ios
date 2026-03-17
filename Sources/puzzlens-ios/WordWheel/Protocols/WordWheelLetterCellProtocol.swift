@@ -2,14 +2,35 @@ import SwiftUI
 
 /// A view that represents a single letter tile on the word wheel.
 ///
-/// Conform to this protocol to supply a custom letter tile to `WordWheelView`
+/// Conform to this protocol to supply a custom letter tile to ``WordWheelView``
 /// via the `.letterCell(cell:)` modifier.
 ///
-/// - `letter`  — The letter displayed on this tile (always uppercased).
-/// - `isMain`  — `true` when this tile is the centre/main letter.
-/// - `isUsed`  — `true` when this specific tile has already been tapped as part
-///               of the word currently being built, so it cannot be tapped again.
-/// - `onTap`   — Call this when the tile is tapped.
+/// ```swift
+/// struct MyTile: WordWheelLetterCellProtocol {
+///     let letter: String
+///     let isMain: Bool
+///     let isUsed: Bool
+///     let onTap: () -> Void
+///
+///     init(letter: String, isMain: Bool, isUsed: Bool, onTap: @escaping () -> Void) {
+///         self.letter = letter; self.isMain = isMain
+///         self.isUsed = isUsed; self.onTap = onTap
+///     }
+///
+///     var body: some View { … }
+/// }
+///
+/// WordWheelView(model: model)
+///     .letterCell(cell: MyTile.self)
+/// ```
 public protocol WordWheelLetterCellProtocol: View {
+    /// Creates a letter tile for the given letter and interaction state.
+    ///
+    /// - Parameters:
+    ///   - letter: The letter displayed on this tile (always uppercased).
+    ///   - isMain: `true` when this tile is the centre/main letter.
+    ///   - isUsed: `true` when this tile has already been selected for the current word attempt
+    ///     and therefore cannot be tapped again until the word is submitted or cleared.
+    ///   - onTap: Call this closure when the tile is tapped (only when `isUsed` is `false`).
     init(letter: String, isMain: Bool, isUsed: Bool, onTap: @escaping () -> Void)
 }

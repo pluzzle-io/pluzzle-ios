@@ -19,6 +19,13 @@ public struct VoxelGameView: View {
     private var onInputCallback: ((_ coord: VoxelCoord, _ player: VoxelPlayer) -> Void)? = nil
     private var onCompletionCallback: ((_ winner: VoxelPlayer?) -> Void)? = nil
 
+    /// Creates a new Voxel game view with the given model.
+    ///
+    /// Apply `.node(shape:size:)`, `.theme(_:)`, `.onInput(_:)`, and `.onCompletion(_:)`
+    /// modifiers before inserting the view into the hierarchy.
+    ///
+    /// - Parameter model: The ``VoxelModel`` defining the win condition and turn limit.
+    ///   Defaults to a standard 3-in-a-row game with no turn limit.
     public init(model: VoxelModel = VoxelModel()) {
         self.model = model
     }
@@ -209,7 +216,9 @@ extension _VoxelSceneRepresentable {
             gameRootNode.eulerAngles = SCNVector3(rotationX, rotationY, 0)
             scene.rootNode.addChildNode(gameRootNode)
 
-            let seedNode = makeSolidNode(color: color(for: .one))
+            // Place the neutral seed node at the origin using the theme's seed colour.
+            // cells[.zero] is marked as .one to prevent a ghost from ever appearing at the origin.
+            let seedNode = makeSolidNode(color: UIColor(theme.seed))
             seedNode.name = "seed"
             gameRootNode.addChildNode(seedNode)
             cells[.zero] = .one
