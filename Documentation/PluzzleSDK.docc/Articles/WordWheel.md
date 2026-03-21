@@ -9,7 +9,7 @@ Add a letter-wheel word-finding puzzle to your app.
 ### Getting started
 
 ```swift
-import PuzzlensSDK
+import PluzzleSDK
 
 let model = WordWheelModel(
     mainLetter: "E",

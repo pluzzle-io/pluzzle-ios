@@ -9,7 +9,7 @@
 At minimum, provide a `MinesweeperModel` that describes the grid size and mine count:
 
 ```swift
-import PuzzlensSDK
+import PluzzleSDK
 
 let model = MinesweeperModel(rows: 9, columns: 9, mineCount: 10)
 

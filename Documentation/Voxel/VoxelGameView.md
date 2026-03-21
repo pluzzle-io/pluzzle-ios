@@ -7,7 +7,7 @@
 ## Overview
 
 ```swift
-import PuzzlensSDK
+import PluzzleSDK
 
 VoxelGameView(model: VoxelModel(winLength: 3))
     .onInput { coord, player in

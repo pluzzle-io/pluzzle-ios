@@ -1,10 +1,10 @@
-# PuzzlensSDK
+# PluzzleSDK
 
 Add fully interactive puzzle games to your iOS app with a few lines of SwiftUI.
 
 ## Overview
 
-PuzzlensSDK provides six self-contained game views that you can drop into any SwiftUI hierarchy. Each view manages its own state and game logic, and exposes a chainable modifier API so you can customise cell rendering, theming, and callbacks without touching the internals.
+PluzzleSDK provides six self-contained game views that you can drop into any SwiftUI hierarchy. Each view manages its own state and game logic, and exposes a chainable modifier API so you can customise cell rendering, theming, and callbacks without touching the internals.
 
 All views require **iOS 17** or later.
 
@@ -13,7 +13,7 @@ All views require **iOS 17** or later.
 Add the package to your project and import the module:
 
 ```swift
-import PuzzlensSDK
+import PluzzleSDK
 ```
 
 Every game follows the same pattern:

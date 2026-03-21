@@ -9,7 +9,7 @@ Add a continuous-path drawing puzzle to your app.
 ### Getting started
 
 ```swift
-import PuzzlensSDK
+import PluzzleSDK
 
 StreaksGameView(model: StreaksModel(rows: 5, columns: 5))
     .grid(spacing: 8, cell: MyCustomCell.self)

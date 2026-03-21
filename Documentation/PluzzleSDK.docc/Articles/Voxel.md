@@ -9,7 +9,7 @@ Add a 3D Tic-Tac-Toe game to your app.
 ### Getting started
 
 ```swift
-import PuzzlensSDK
+import PluzzleSDK
 
 VoxelGameView()
     .onInput { coord, player in

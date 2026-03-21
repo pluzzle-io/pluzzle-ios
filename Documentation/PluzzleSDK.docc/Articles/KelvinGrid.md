@@ -9,7 +9,7 @@ Add a Wordle-style word-guessing puzzle to your app.
 ### Getting started
 
 ```swift
-import PuzzlensSDK
+import PluzzleSDK
 
 KelvinGridView(model: KelvinGridModel(targetWord: "SWIFT", maxAttempts: 6))
     .padding()

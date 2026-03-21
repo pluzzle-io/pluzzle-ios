@@ -9,7 +9,7 @@ Add a fully interactive Minesweeper game to your app.
 ### Getting started
 
 ```swift
-import PuzzlensSDK
+import PluzzleSDK
 
 MinesweeperGameView(model: MinesweeperModel(rows: 9, columns: 9, mineCount: 10))
     .padding()

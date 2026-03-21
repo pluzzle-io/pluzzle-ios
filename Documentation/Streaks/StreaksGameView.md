@@ -7,7 +7,7 @@
 ## Overview
 
 ```swift
-import PuzzlensSDK
+import PluzzleSDK
 
 let model = StreaksModel(rows: 5, columns: 5)
 

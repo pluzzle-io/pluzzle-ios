@@ -9,7 +9,7 @@ Add a fully interactive 9×9 Sudoku puzzle to your app.
 ### Getting started
 
 ```swift
-import PuzzlensSDK
+import PluzzleSDK
 
 SudokuGameView(model: SudokuGameModel.example)
     .padding()
