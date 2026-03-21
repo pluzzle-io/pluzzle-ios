@@ -24,6 +24,8 @@ public struct SudokuGameView: View {
     // MARK: - Configuration
 
     private var gridSpacing: CGFloat = 2.0
+    private var dividerColor: Color = .black
+    private var dividerThickness: CGFloat = 1.5
 
     /// Optional external reset trigger. Set to `true` from outside the view to reset the board;
     /// the view automatically resets the value back to `false` after processing.
@@ -82,60 +84,63 @@ public struct SudokuGameView: View {
     }
 
     public var body: some View {
+        GeometryReader { screen in
+        ScrollView {
         VStack(spacing: 12) {
-            GeometryReader { gp in
-                // Compute cell size accounting for spacing so grid fits width
-                let totalHSpacing = gridSpacing * CGFloat(m - 1)
-                let availableWidth = gp.size.width - totalHSpacing
-                let cellSize = availableWidth / CGFloat(m)
-
-                LazyVGrid(columns: columns, spacing: gridSpacing) {
-                    ForEach(0..<count, id: \.self) { index in
-                        let row = index / m
-                        let col = index % m
-                        let fixedValue = model.grid[row][col]
-                        let isFixed = fixedValue != nil
-
-                        // show fixed value OR user entry
-                        let displayValue = fixedValue ?? entries[safe: row]?[safe: col] ?? nil
-                        let text = displayValue.map(String.init) ?? ""
-
-                        // isSelected binding derived from selectedIndex; blocked for fixed cells
-                        let isSelected = Binding<Bool>(
-                            get: { selectedIndex == index },
-                            set: { newValue in
-                                if !isFixed {
-                                    selectedIndex = newValue ? index : nil
-                                }
-                            }
-                        )
-
-                        cellFactory(index, isSelected, text, isFixed)
-                            .frame(width: cellSize, height: cellSize)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                guard !isFixed else { return }
-                                withAnimation(.easeInOut(duration: 0.15)) {
-                                    selectedIndex = (selectedIndex == index) ? nil : index
-                                }
-                            }
-                    }
-                }
-                // Thick 3×3 block borders overlay (only meaningful for 9×9)
+            // Use a zero-size Color as the aspect-ratio anchor so the GeometryReader
+            // receives a square frame rather than expanding to fill all available height.
+            Color.clear
+                .aspectRatio(1, contentMode: .fit)
                 .overlay {
-                    LazyVGrid(columns: overlayColumns, spacing: 0) {
-                        ForEach(0..<9, id: \.self) { _ in
-                            Rectangle()
-                                .fill(.clear)
-                                .frame(width: gp.size.width / 3, height: gp.size.width / 3)
-                                .border(.black, width: 1.5)
+                    GeometryReader { gp in
+                        let totalHSpacing = gridSpacing * CGFloat(m - 1)
+                        let availableWidth = gp.size.width - totalHSpacing
+                        let cellSize = availableWidth / CGFloat(m)
+
+                        LazyVGrid(columns: columns, spacing: gridSpacing) {
+                            ForEach(0..<count, id: \.self) { index in
+                                let row = index / m
+                                let col = index % m
+                                let fixedValue = model.grid[row][col]
+                                let isFixed = fixedValue != nil
+
+                                let displayValue = fixedValue ?? entries[safe: row]?[safe: col] ?? nil
+                                let text = displayValue.map(String.init) ?? ""
+
+                                let isSelected = Binding<Bool>(
+                                    get: { selectedIndex == index },
+                                    set: { newValue in
+                                        if !isFixed {
+                                            selectedIndex = newValue ? index : nil
+                                        }
+                                    }
+                                )
+
+                                cellFactory(index, isSelected, text, isFixed)
+                                    .frame(width: cellSize, height: cellSize)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        guard !isFixed else { return }
+                                        withAnimation(.easeInOut(duration: 0.15)) {
+                                            selectedIndex = (selectedIndex == index) ? nil : index
+                                        }
+                                    }
+                            }
+                        }
+                        .overlay {
+                            LazyVGrid(columns: overlayColumns, spacing: 0) {
+                                ForEach(0..<9, id: \.self) { _ in
+                                    Rectangle()
+                                        .fill(.clear)
+                                        .frame(width: gp.size.width / 3, height: gp.size.width / 3)
+                                        .border(dividerColor, width: dividerThickness)
+                                }
+                            }
+                            .border(dividerColor, width: dividerThickness * 1.5)
                         }
                     }
-                    .border(.black, width: 2)
                 }
-            }
-            .aspectRatio(1, contentMode: .fit)
-            .border(.black, width: 3)
+                .border(dividerColor, width: dividerThickness * 2)
 
             // Number Pad (factory-driven, no Clear)
             SudokuNumberPad(
@@ -155,6 +160,12 @@ public struct SudokuGameView: View {
                 }
             )
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(minHeight: screen.size.height)
+        } // end ScrollView
+        .frame(width: screen.size.width, height: screen.size.height)
+        } // end GeometryReader
         .onAppear {
             if entries.isEmpty {
                 entries = model.grid
@@ -189,6 +200,23 @@ public struct SudokuGameView: View {
         copy.cellFactory = { _, isSelected, text, isFixed in
             AnyView(T(isSelected: isSelected, text: text, isFixed: isFixed))
         }
+        return copy
+    }
+
+    /// Sets the cell spacing, registers a custom cell type, and configures the 3×3 box divider appearance.
+    /// - Parameters:
+    ///   - spacing: Points of space between adjacent cells.
+    ///   - cell: A type conforming to ``SudokuCellProtocol`` used to render each grid cell.
+    ///   - dividerColor: The color used to draw the thick lines separating the 3×3 boxes.
+    ///   - dividerThickness: The base stroke width of the box-divider lines.
+    public func grid<T: SudokuCellProtocol>(spacing: CGFloat, cell: T.Type, dividerColor: Color, dividerThickness: CGFloat) -> Self {
+        var copy = self
+        copy.gridSpacing = spacing
+        copy.cellFactory = { _, isSelected, text, isFixed in
+            AnyView(T(isSelected: isSelected, text: text, isFixed: isFixed))
+        }
+        copy.dividerColor = dividerColor
+        copy.dividerThickness = dividerThickness
         return copy
     }
 
