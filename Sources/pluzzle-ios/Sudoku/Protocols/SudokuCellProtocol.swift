@@ -10,9 +10,10 @@ import SwiftUI
 ///     @Binding var isSelected: Bool
 ///     let text: String
 ///     let isFixed: Bool
+///     let notes: Set<Int>?
 ///
-///     init(isSelected: Binding<Bool>, text: String, isFixed: Bool) {
-///         self._isSelected = isSelected; self.text = text; self.isFixed = isFixed
+///     init(isSelected: Binding<Bool>, text: String, isFixed: Bool, notes: Set<Int>? = nil) {
+///         self._isSelected = isSelected; self.text = text; self.isFixed = isFixed; self.notes = notes
 ///     }
 ///
 ///     var body: some View { … }
@@ -29,5 +30,14 @@ public protocol SudokuCellProtocol: View {
     ///     Update the binding when the cell is tapped (unless it is fixed).
     ///   - text: The digit to display (`"1"`–`"9"`), or an empty string if the cell is blank.
     ///   - isFixed: `true` if the cell was pre-filled in the puzzle and cannot be edited.
-    init(isSelected: Binding<Bool>, text: String, isFixed: Bool)
+    ///   - notes: The candidate digits (1–9) the player has pencilled in for this cell.
+    ///     `nil` when no notes have been written. Displayed only when `text` is empty.
+    init(isSelected: Binding<Bool>, text: String, isFixed: Bool, notes: Set<Int>?)
+}
+
+extension SudokuCellProtocol {
+    /// Convenience initialiser that omits `notes`, defaulting to `nil`.
+    public init(isSelected: Binding<Bool>, text: String, isFixed: Bool) {
+        self.init(isSelected: isSelected, text: text, isFixed: isFixed, notes: nil)
+    }
 }

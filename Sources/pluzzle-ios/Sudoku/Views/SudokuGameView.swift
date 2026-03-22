@@ -6,52 +6,52 @@ import SwiftUI
 /// the view into the hierarchy:
 ///
 /// ```swift
-/// SudokuGameView(model: model)
-///     .grid(spacing: 2, cell: MyCell.self)
-///     .input(cell: MyPadButton.self)
-///     .onInput { row, col, value in print("Entered \(value ?? 0)") }
-///     .onCompletion { isCorrect in showResult = true }
+/// @State private var model = SudokuGameModel.example
+///
+/// var body: some View {
+///     SudokuGameView(model: model)
+///         .grid(spacing: 2, cell: MyCell.self)
+///         .input(cell: MyPadButton.self)
+///         .onInput { row, col, value in print("Entered \(value ?? 0)") }
+///         .onCompletion { isCorrect in showResult = true }
+/// }
 /// ```
+///
+/// Because ``SudokuGameModel`` is a struct passed via binding, every cell the player fills in is
+/// written back to `model.state` automatically — the parent view always has the current puzzle state.
 ///
 /// ### Interactions
 /// - **Tap** an editable cell to select it, then tap a number on the pad below to fill it.
-/// - Pass a `Binding<Bool?>` `resetTrigger` to programmatically reset the board from outside.
+/// - Tap the **Notes** toggle button to switch between entering digits and pencilling in candidates.
+///   In notes mode tapping a number adds or removes it from `model.notes` for the selected cell.
+///   Entering a digit in normal mode clears that cell's notes automatically.
+/// - Call `model.reset()` from the parent to programmatically reset the board.
 ///
 /// ### Completion
 /// ``onCompletion(_:)`` fires once every cell is filled.
-/// The `Bool` argument is `true` only when all entries match the solution.
-public struct SudokuGameView: View {
+/// The `Bool` argument is `true` only when all entries in `state` match the solution.
+public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     // MARK: - Configuration
 
     private var gridSpacing: CGFloat = 2.0
     private var dividerColor: Color = .black
     private var dividerThickness: CGFloat = 1.5
 
-    /// Optional external reset trigger. Set to `true` from outside the view to reset the board;
-    /// the view automatically resets the value back to `false` after processing.
-    @Binding private var resetTrigger: Bool?
-
     // MARK: - State
 
     @State private var selectedIndex: Int? = nil
+    @State private var isNotesMode: Bool = false
 
-    private let model: SudokuGameModel
-
-    /// The player's current entries. `nil` means the cell is empty.
-    @State private var entries: [[Int?]] = []
+    @Binding var model: Model
 
     // MARK: - Init
 
     /// Creates a new Sudoku game view.
     ///
-    /// - Parameters:
-    ///   - model: The puzzle definition (starting grid and solution).
-    ///   - resetTrigger: An optional binding you can flip to `true` to programmatically
-    ///     reset the board. The view resets the value to `false` after processing.
-    ///     Defaults to `.constant(nil)` (no external reset).
-    public init(model: SudokuGameModel, resetTrigger: Binding<Bool?> = .constant(nil)) {
-        self.model = model
-        self._resetTrigger = resetTrigger
+    /// - Parameter model: A binding to any ``SudokuGameModelProtocol`` value held as `@State`
+    ///   in the parent view — player moves are written back to `model.state` automatically.
+    public init(model: Binding<Model>) {
+        self._model = model
     }
 
     private var n: Int { model.grid.count }
@@ -59,9 +59,9 @@ public struct SudokuGameView: View {
     private var count: Int { n * m }
 
     // Type-erased factories (default implementations)
-    private var cellFactory: (_ index: Int, _ isSelected: Binding<Bool>, _ text: String, _ isFixed: Bool) -> AnyView =
-    { _, isSelected, text, isFixed in
-        AnyView(SudokuGameCell(isSelected: isSelected, text: text, isFixed: isFixed))
+    private var cellFactory: (_ index: Int, _ isSelected: Binding<Bool>, _ text: String, _ isFixed: Bool, _ notes: Set<Int>?) -> AnyView =
+    { _, isSelected, text, isFixed, notes in
+        AnyView(SudokuGameCell(isSelected: isSelected, text: text, isFixed: isFixed, notes: notes))
     }
 
     private var inputPadFactory: (_ label: String, _ onTap: @escaping () -> Void) -> AnyView =
@@ -104,8 +104,9 @@ public struct SudokuGameView: View {
                                 let fixedValue = model.grid[row][col]
                                 let isFixed = fixedValue != nil
 
-                                let displayValue = fixedValue ?? entries[safe: row]?[safe: col] ?? nil
+                                let displayValue = fixedValue ?? model.state[safe: row]?[safe: col] ?? nil
                                 let text = displayValue.map(String.init) ?? ""
+                                let cellNotes = model.notes?[safe: row]?[safe: col] ?? []
 
                                 let isSelected = Binding<Bool>(
                                     get: { selectedIndex == index },
@@ -116,7 +117,7 @@ public struct SudokuGameView: View {
                                     }
                                 )
 
-                                cellFactory(index, isSelected, text, isFixed)
+                                cellFactory(index, isSelected, text, isFixed, cellNotes)
                                     .frame(width: cellSize, height: cellSize)
                                     .contentShape(Rectangle())
                                     .onTapGesture {
@@ -142,6 +143,19 @@ public struct SudokuGameView: View {
                 }
                 .border(dividerColor, width: dividerThickness * 2)
 
+            // Notes mode toggle
+            Button {
+                isNotesMode.toggle()
+            } label: {
+                Label("Notes", systemImage: "pencil")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(isNotesMode ? .white : .primary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(isNotesMode ? Color.indigo : Color.gray.opacity(0.15))
+                    .clipShape(Capsule())
+            }
+
             // Number Pad (factory-driven, no Clear)
             SudokuNumberPad(
                 makeCell: inputPadFactory,
@@ -149,12 +163,22 @@ public struct SudokuGameView: View {
                     guard let idx = selectedIndex else { return }
                     let row = idx / m
                     let col = idx % m
-                    // Only allow editing non-fixed cells
-                    if model.grid[row][col] == nil {
-                        entries[row][col] = number
+                    guard model.grid[row][col] == nil else { return }
+                    if isNotesMode {
+                        if model.notes == nil {
+                            model.notes = Array(repeating: Array(repeating: Set<Int>(), count: m), count: n)
+                        }
+                        if model.notes![row][col].contains(number) {
+                            model.notes![row][col].remove(number)
+                        } else {
+                            model.notes![row][col].insert(number)
+                        }
+                    } else {
+                        model.state[row][col] = number
+                        model.notes?[row][col] = []
                         onInputCallback?(row, col, number)
-                        if isGridFilled() {
-                            onCompletionCallback?(isCompleteCorrectly())
+                        if model.isComplete {
+                            onCompletionCallback?(model.isCorrect)
                         }
                     }
                 }
@@ -166,26 +190,6 @@ public struct SudokuGameView: View {
         } // end ScrollView
         .frame(width: screen.size.width, height: screen.size.height)
         } // end GeometryReader
-        .onAppear {
-            if entries.isEmpty {
-                entries = model.grid
-            }
-        }
-        // External reset trigger (optional)
-        .onChange(of: resetTrigger) { _, newValue in
-            guard newValue == true else { return }
-            resetGrid()
-            // auto-clear the trigger so a subsequent `true` fires again
-            resetTrigger = false
-        }
-    }
-
-    // MARK: - Public Helpers
-
-    /// Resets all player entries and clears the selection, returning the board to
-    /// its initial state. Prefer using the `resetTrigger` binding from outside the view.
-    public func programmaticReset() {
-        resetGrid()
     }
 
     // MARK: - Modifiers (generic API, type-erased storage)
@@ -197,8 +201,8 @@ public struct SudokuGameView: View {
     public func grid<T: SudokuCellProtocol>(spacing: CGFloat, cell: T.Type) -> Self {
         var copy = self
         copy.gridSpacing = spacing
-        copy.cellFactory = { _, isSelected, text, isFixed in
-            AnyView(T(isSelected: isSelected, text: text, isFixed: isFixed))
+        copy.cellFactory = { _, isSelected, text, isFixed, notes in
+            AnyView(T(isSelected: isSelected, text: text, isFixed: isFixed, notes: notes))
         }
         return copy
     }
@@ -212,8 +216,8 @@ public struct SudokuGameView: View {
     public func grid<T: SudokuCellProtocol>(spacing: CGFloat, cell: T.Type, dividerColor: Color, dividerThickness: CGFloat) -> Self {
         var copy = self
         copy.gridSpacing = spacing
-        copy.cellFactory = { _, isSelected, text, isFixed in
-            AnyView(T(isSelected: isSelected, text: text, isFixed: isFixed))
+        copy.cellFactory = { _, isSelected, text, isFixed, notes in
+            AnyView(T(isSelected: isSelected, text: text, isFixed: isFixed, notes: notes))
         }
         copy.dividerColor = dividerColor
         copy.dividerThickness = dividerThickness
@@ -248,26 +252,4 @@ public struct SudokuGameView: View {
 
     // MARK: - Helpers
 
-    private func isGridFilled() -> Bool {
-        for r in 0..<n {
-            for c in 0..<m {
-                if entries[r][c] == nil { return false }
-            }
-        }
-        return true
-    }
-
-    private func isCompleteCorrectly() -> Bool {
-        for r in 0..<n {
-            for c in 0..<m {
-                if entries[r][c] != model.solution[r][c] { return false }
-            }
-        }
-        return true
-    }
-
-    private func resetGrid() {
-        entries = model.grid
-        selectedIndex = nil
-    }
 }

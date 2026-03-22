@@ -1,78 +1,136 @@
 # SudokuGameView
 
-`SudokuGameView` is a self-contained SwiftUI view that renders a fully interactive 9×9 Sudoku puzzle. It handles cell selection, user input via a number pad, and game completion detection out of the box. Its appearance and behaviour can be customised through a chainable modifier API.
+`SudokuGameView` is a SwiftUI view that renders a fully interactive Sudoku puzzle. It handles cell selection, number input, and completion detection out of the box. Appearance and behaviour are customised through a chainable modifier API.
 
 ---
 
 ## Basic Usage
 
-At minimum, provide a `SudokuGameModel` containing the starting grid and the solution:
+Hold a `SudokuGameModel` as `@State` and pass it to `SudokuGameView` via a binding:
 
 ```swift
-SudokuGameView(model: myModel)
+@State private var model = SudokuGameModel.example
+
+var body: some View {
+    SudokuGameView(model: $model)
+}
 ```
 
-`SudokuGameModel` holds two grids:
+Because the model is passed as a `Binding`, every cell the player fills in is written back to `model.state` automatically — the parent view always has the current puzzle state.
 
-- `grid` — the puzzle's starting state. Pre-filled cells use `Int` values; empty cells are `nil`.
-- `solution` — the complete, correct solution as a flat `[[Int]]`.
+---
+
+## The Model
+
+`SudokuGameModel` is the built-in model type. It holds all game state:
+
+| Property | Type | Description |
+|---|---|---|
+| `grid` | `[[Int?]]` | Initial puzzle. Pre-filled cells hold `1–9`; empty cells are `nil`. |
+| `solution` | `[[Int]]` | The complete, correct solution. |
+| `state` | `[[Int?]]` | Player's current entries — updated live as they play. |
+| `notes` | `[[Set<Int>]]?` | Optional per-cell pencil marks. `nil` until first note is written. |
+| `isComplete` | `Bool` | `true` when every cell has been filled (regardless of correctness). |
+| `isCorrect` | `Bool` | `true` when all entries match the solution. |
 
 ```swift
 let model = SudokuGameModel(
     grid: [
-        [nil, 3, 4, 6, 7, 8, 9, 1, 2],
-        [6, 7, 2, 1, 9, 5, 3, 4, 8],
-        // ...
+        [5, 3, nil, nil, 7, nil, nil, nil, nil],
+        [nil, 7, nil, 1, nil, nil, nil, 4, nil],
+        // …
     ],
     solution: [
         [5, 3, 4, 6, 7, 8, 9, 1, 2],
         [6, 7, 2, 1, 9, 5, 3, 4, 8],
-        // ...
+        // …
     ]
 )
+```
 
-var body: some View {
-    SudokuGameView(model: model)
+### Restoring Progress
+
+Pass a `state` array to the initialiser to restore a previously saved game:
+
+```swift
+@State private var model = SudokuGameModel(
+    grid: savedGrid,
+    solution: savedSolution,
+    state: savedState   // player's progress
+)
+```
+
+To save progress, read `model.state` (and optionally `model.notes`) at any time from the parent view — they are always current.
+
+---
+
+## Resetting
+
+Call `model.reset()` to restore the board to its initial state and clear all notes:
+
+```swift
+Button("Reset") {
+    model.reset()
 }
+
+SudokuGameView(model: $model)
 ```
 
 ---
 
-## External Reset
+## Custom Models — `SudokuGameModelProtocol`
 
-You can optionally pass a `Binding<Bool?>` to trigger a puzzle reset from outside the view. Set it to `true` to reset; the view automatically resets it back to `false` so subsequent resets work correctly.
+`SudokuGameView` is generic over `SudokuGameModelProtocol`, so you can supply your own model type:
 
 ```swift
-@State private var resetTrigger: Bool? = nil
+public protocol SudokuGameModelProtocol {
+    var grid: [[Int?]] { get }
+    var solution: [[Int]] { get }
+    var state: [[Int?]] { get set }
+    var notes: [[Set<Int>]]? { get set }
+    mutating func reset()
+    // isComplete and isCorrect are provided free via a protocol extension
+}
+```
 
-var body: some View {
-    VStack {
-        SudokuGameView(model: model, resetTrigger: $resetTrigger)
+Example:
 
-        Button("Restart") {
-            resetTrigger = true
-        }
+```swift
+struct MyModel: SudokuGameModelProtocol {
+    var grid: [[Int?]]
+    var solution: [[Int]]
+    var state: [[Int?]]
+    var notes: [[Set<Int>]]?
+
+    mutating func reset() {
+        state = grid
+        notes = nil
     }
 }
+
+@State private var model = MyModel(…)
+SudokuGameView(model: $model)
 ```
 
 ---
 
 ## Customising the Grid — `.grid(spacing:cell:)`
 
-By default, `SudokuGameView` renders cells using its built-in `SudokuGameCell`. You can replace this with any custom view using the `.grid` modifier:
+By default, `SudokuGameView` renders cells using the built-in `SudokuGameCell`. Replace it with any custom view using the `.grid` modifier:
 
 ```swift
-SudokuGameView(model: model)
+SudokuGameView(model: $model)
     .grid(spacing: 2, cell: MyCustomCell.self)
 ```
 
-- `spacing` — the gap in points between cells.
-- `cell` — a type that conforms to `SudokuCellProtocol`.
+To also control the 3×3 box divider:
+
+```swift
+SudokuGameView(model: $model)
+    .grid(spacing: 2, cell: MyCustomCell.self, dividerColor: .black, dividerThickness: 1.5)
+```
 
 ### Adopting `SudokuCellProtocol`
-
-Your custom cell must conform to `SudokuCellProtocol`, which requires a specific initialiser:
 
 ```swift
 public protocol SudokuCellProtocol: View {
@@ -82,53 +140,48 @@ public protocol SudokuCellProtocol: View {
 
 | Parameter | Type | Description |
 |---|---|---|
-| `isSelected` | `Binding<Bool>` | Whether this cell is currently selected by the player. |
-| `text` | `String` | The number to display (`"1"`–`"9"`), or an empty string if the cell is blank. |
-| `isFixed` | `Bool` | `true` if the cell was pre-filled in the puzzle and cannot be edited. |
+| `isSelected` | `Binding<Bool>` | Whether this cell is currently selected. |
+| `text` | `String` | The digit to display (`"1"`–`"9"`), or empty if blank. |
+| `isFixed` | `Bool` | `true` if the cell was pre-filled and cannot be edited. |
 
-**Example custom cell:**
+Example:
 
 ```swift
-struct MyCustomCell: View, SudokuCellProtocol {
+struct MyCell: View, SudokuCellProtocol {
     @Binding var isSelected: Bool
     var text: String
     var isFixed: Bool
 
+    init(isSelected: Binding<Bool>, text: String, isFixed: Bool) {
+        self._isSelected = isSelected
+        self.text = text
+        self.isFixed = isFixed
+    }
+
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 4)
-                .fill(isFixed ? Color.primary.opacity(0.1) : (isSelected ? Color.accentColor : Color.clear))
-                .border(Color.secondary.opacity(0.3), width: 0.5)
-
+                .fill(isFixed ? .secondary.opacity(0.2) : (isSelected ? .accentColor : .clear))
             Text(text)
                 .font(.title2.bold())
-                .foregroundStyle(isFixed ? .primary : (isSelected ? .white : .primary))
+                .foregroundStyle(isSelected && !isFixed ? .white : .primary)
         }
     }
 }
-```
-
-Then pass it to the modifier:
-
-```swift
-SudokuGameView(model: model)
-    .grid(spacing: 1, cell: MyCustomCell.self)
 ```
 
 ---
 
 ## Customising the Input Pad — `.input(cell:)`
 
-The number pad below the grid is also fully replaceable. Use the `.input` modifier to supply a custom button type:
+Replace the default number pad buttons with your own type:
 
 ```swift
-SudokuGameView(model: model)
-    .input(cell: MyCustomPadButton.self)
+SudokuGameView(model: $model)
+    .input(cell: MyPadButton.self)
 ```
 
 ### Adopting `InputPadCellProtocol`
-
-Your custom button must conform to `InputPadCellProtocol`:
 
 ```swift
 public protocol InputPadCellProtocol: View {
@@ -138,13 +191,13 @@ public protocol InputPadCellProtocol: View {
 
 | Parameter | Type | Description |
 |---|---|---|
-| `label` | `String` | The number to display on the button (`"1"`–`"9"`). |
-| `onTap` | `() -> Void` | The action to call when the button is tapped. Call this from your tap gesture. |
+| `label` | `String` | The digit to display (`"1"`–`"9"`). |
+| `onTap` | `() -> Void` | Call this when the button is tapped. |
 
-**Example custom button:**
+Example:
 
 ```swift
-struct MyCustomPadButton: View, InputPadCellProtocol {
+struct MyPadButton: View, InputPadCellProtocol {
     var label: String
     var onTap: () -> Void
 
@@ -159,19 +212,12 @@ struct MyCustomPadButton: View, InputPadCellProtocol {
                 .font(.title3.bold())
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(Color.accentColor)
+                .background(.tint)
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
         }
     }
 }
-```
-
-Then pass it to the modifier:
-
-```swift
-SudokuGameView(model: model)
-    .input(cell: MyCustomPadButton.self)
 ```
 
 ---
@@ -180,10 +226,10 @@ SudokuGameView(model: model)
 
 ### `.onInput(_:)`
 
-Called every time the player places a number in a cell. Use this to react to individual moves — logging, hints, undo history, etc.
+Called every time the player places a number in a cell.
 
 ```swift
-SudokuGameView(model: model)
+SudokuGameView(model: $model)
     .onInput { row, col, value in
         print("Player entered \(value ?? 0) at row \(row), col \(col)")
     }
@@ -197,16 +243,12 @@ SudokuGameView(model: model)
 
 ### `.onCompletion(_:)`
 
-Called when the player has filled every cell. The `Bool` argument indicates whether the completed grid matches the solution.
+Called once when every cell has been filled. The `Bool` argument indicates whether the completed grid matches the solution.
 
 ```swift
-SudokuGameView(model: model)
+SudokuGameView(model: $model)
     .onCompletion { isCorrect in
-        if isCorrect {
-            print("Puzzle solved!")
-        } else {
-            print("Grid is full but incorrect.")
-        }
+        print(isCorrect ? "Solved!" : "Board full but incorrect.")
     }
 ```
 
@@ -215,14 +257,22 @@ SudokuGameView(model: model)
 ## Putting It All Together
 
 ```swift
-SudokuGameView(model: model, resetTrigger: $resetTrigger)
-    .grid(spacing: 1, cell: MyCustomCell.self)
-    .input(cell: MyCustomPadButton.self)
-    .onInput { row, col, value in
-        print("Entered \(value ?? 0) at (\(row), \(col))")
+@State private var model = SudokuGameModel.example
+
+var body: some View {
+    VStack {
+        Button("Reset") { model.reset() }
+
+        SudokuGameView(model: $model)
+            .grid(spacing: 2, cell: MyCell.self, dividerColor: .black, dividerThickness: 1.5)
+            .input(cell: MyPadButton.self)
+            .onInput { row, col, value in
+                print("Entered \(value ?? 0) at (\(row), \(col))")
+            }
+            .onCompletion { isCorrect in
+                showAlert = true
+                alertMessage = isCorrect ? "Well done!" : "Not quite right."
+            }
     }
-    .onCompletion { isCorrect in
-        showAlert = true
-        alertMessage = isCorrect ? "Well done!" : "Not quite right."
-    }
+}
 ```
