@@ -27,16 +27,27 @@ import SwiftUI
 /// all its immediate neighbors are mine-free.
 public struct MinesweeperGameView: View {
 
+    // MARK: - Configuration
+
     private let model: MinesweeperModel
     private var gridSpacing: CGFloat = 4
-    private var cellFactory: (_ row: Int, _ col: Int, _ state: MinesweeperCellState) -> AnyView
-    private var onInputCallback: ((_ coord: MinesweeperCoord, _ score: Int) -> Void)?
-    private var onCompletionCallback: ((_ didWin: Bool) -> Void)?
+
+    private var cellFactory: (_ row: Int, _ col: Int, _ state: MinesweeperCellState) -> AnyView =
+    { row, col, state in
+        AnyView(MinesweeperCell(row: row, column: col, state: state))
+    }
+
+    private var onInputCallback: ((_ coord: MinesweeperCoord, _ score: Int) -> Void)? = nil
+    private var onCompletionCallback: ((_ didWin: Bool) -> Void)? = nil
+
+    // MARK: - State
 
     @State private var cellStates: [[MinesweeperCellState]]
     @State private var activeMines: Set<MinesweeperCoord>
     @State private var score: Int
     @State private var isGameOver: Bool
+
+    // MARK: - Init
 
     /// Creates a new game view with the given model.
     ///
@@ -46,9 +57,6 @@ public struct MinesweeperGameView: View {
     /// - Parameter model: The ``MinesweeperModel`` that defines the grid dimensions and mine count.
     public init(model: MinesweeperModel) {
         self.model = model
-        self.cellFactory = { row, col, state in
-            AnyView(MinesweeperCell(row: row, column: col, state: state))
-        }
         _cellStates = State(initialValue:
             Array(repeating: Array(repeating: .hidden, count: model.columns), count: model.rows)
         )
@@ -110,7 +118,7 @@ public struct MinesweeperGameView: View {
         return copy
     }
 
-    // MARK: - Game Logic
+    // MARK: - Helpers
 
     private func handleTap(at coord: MinesweeperCoord) {
         guard !isGameOver else { return }

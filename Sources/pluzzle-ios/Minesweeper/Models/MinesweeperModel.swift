@@ -39,6 +39,8 @@ public struct MinesweeperModel: Sendable {
     public let mineCount: Int
     /// Pre-placed mine positions. Leave empty to auto-generate on the first tap (safe-start guaranteed).
     public let mines: Set<MinesweeperCoord>
+    /// How mines are placed when auto-generating. Defaults to ``MinesweeperGenerationMode/random``.
+    public let generationMode: MinesweeperGenerationMode
 
     /// Creates a new model.
     ///
@@ -47,16 +49,19 @@ public struct MinesweeperModel: Sendable {
     ///   - columns: Number of columns.
     ///   - mineCount: How many mines to place when auto-generating. Ignored if `mines` is non-empty.
     ///   - mines: Optional pre-placed mine positions. Pass an empty set (the default) to auto-generate.
+    ///   - generationMode: How mines are placed when auto-generating. Defaults to ``MinesweeperGenerationMode/random``.
     public init(
         rows: Int,
         columns: Int,
         mineCount: Int,
-        mines: Set<MinesweeperCoord> = []
+        mines: Set<MinesweeperCoord> = [],
+        generationMode: MinesweeperGenerationMode = .random
     ) {
         self.rows = rows
         self.columns = columns
         self.mineCount = mineCount
         self.mines = mines
+        self.generationMode = generationMode
     }
 
     /// Returns all valid 8-directional neighbors of `coord` that lie within the grid bounds.
@@ -83,7 +88,12 @@ public struct MinesweeperModel: Sendable {
         neighbors(of: coord).filter { mines.contains($0) }.count
     }
 
-    /// Randomly places `mineCount` mines across the grid, excluding every coord in `safeZone`.
+    /// Places `mineCount` mines across the grid, excluding every coord in `safeZone`.
+    ///
+    /// Placement strategy is determined by ``generationMode``:
+    /// - ``MinesweeperGenerationMode/random``: uses the system RNG — no two calls produce the same layout.
+    /// - ``MinesweeperGenerationMode/seeded(_:)``: derives a seed from the date's day, month, and year
+    ///   so the same calendar date always produces the same layout.
     ///
     /// Used internally by ``MinesweeperGameView`` on the first tap to guarantee a safe opening.
     /// - Parameter safeZone: Cells that must not receive a mine (typically the tapped cell + its neighbors).
@@ -96,10 +106,45 @@ public struct MinesweeperModel: Sendable {
                 if !safeZone.contains(coord) { candidates.append(coord) }
             }
         }
-        candidates.shuffle()
+        switch generationMode {
+        case .random:
+            candidates.shuffle()
+        case .seeded(let date):
+            var rng = SeededRNG(seed: Self.seed(from: date))
+            candidates.shuffle(using: &rng)
+        }
         return Set(candidates.prefix(min(mineCount, candidates.count)))
     }
 
+    /// Derives a deterministic UInt64 seed from the day, month, and year of `date`.
+    private static func seed(from date: Date) -> UInt64 {
+        let cal = Calendar(identifier: .gregorian)
+        let c = cal.dateComponents([.day, .month, .year], from: date)
+        let y = UInt64(c.year  ?? 2024)
+        let m = UInt64(c.month ?? 1)
+        let d = UInt64(c.day   ?? 1)
+        return y * 10_000 + m * 100 + d
+    }
+
     /// A 9×9 beginner-level example with 10 mines. Mines are auto-generated on first tap.
-    @MainActor public static let example = MinesweeperModel(rows: 9, columns: 9, mineCount: 10)
+    public static let example = MinesweeperModel(rows: 9, columns: 9, mineCount: 10)
+}
+
+// MARK: - SeededRNG
+
+/// A Xorshift64 pseudo-random number generator used for deterministic mine placement.
+private struct SeededRNG: RandomNumberGenerator {
+    private var state: UInt64
+
+    init(seed: UInt64) {
+        // Xorshift requires a non-zero state; use a safe fallback if seed is zero.
+        state = seed == 0 ? 6_364_136_223_846_793_005 : seed
+    }
+
+    mutating func next() -> UInt64 {
+        state ^= state << 13
+        state ^= state >> 7
+        state ^= state << 17
+        return state
+    }
 }

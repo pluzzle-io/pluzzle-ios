@@ -9,18 +9,18 @@ import SwiftUI
 /// - **Flagged** — gray tile with an orange flag icon.
 /// - **Exploded** — red tile with a danger icon (the mine the player tapped).
 /// - **Mine revealed** — muted tile with an outline danger icon (other mines shown at game over).
-public struct MinesweeperCell: MinesweeperCellProtocol {
-    public let row: Int
-    public let column: Int
-    public let state: MinesweeperCellState
+struct MinesweeperCell: MinesweeperCellProtocol {
+    let row: Int
+    let column: Int
+    let state: MinesweeperCellState
 
-    public init(row: Int, column: Int, state: MinesweeperCellState) {
+    init(row: Int, column: Int, state: MinesweeperCellState) {
         self.row = row
         self.column = column
         self.state = state
     }
 
-    public var body: some View {
+    var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8)
                 .fill(backgroundColor)
