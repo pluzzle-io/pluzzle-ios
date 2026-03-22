@@ -55,7 +55,7 @@ public struct StreaksModel: Sendable {
     }
 
     /// A 5×5 ready-made puzzle with four blocked corner-adjacent cells, for use in previews and testing.
-    @MainActor public static let example = StreaksModel(
+    public static let example = StreaksModel(
         rows: 5,
         columns: 5,
         blockedCells: [

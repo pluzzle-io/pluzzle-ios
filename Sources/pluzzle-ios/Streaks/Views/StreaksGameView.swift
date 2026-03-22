@@ -9,16 +9,9 @@ import SwiftUI
 /// When all cells are connected `onCompletion` fires with `true`.
 public struct StreaksGameView: View {
 
-    private let model: StreaksModel
-
-    // MARK: - State
-
-    @State private var selectedPath: [(row: Int, col: Int)] = []
-    @State private var cellStates: [[StreaksCellState]]
-    @State private var isComplete: Bool = false
-
     // MARK: - Configuration
 
+    private let model: StreaksModel
     private var gridSpacing: CGFloat = 8
 
     private var cellFactory: (_ row: Int, _ col: Int, _ state: StreaksCellState) -> AnyView = { row, col, state in
@@ -27,6 +20,12 @@ public struct StreaksGameView: View {
 
     private var onInputCallback: ((_ path: [(row: Int, col: Int)]) -> Void)? = nil
     private var onCompletionCallback: ((_ didWin: Bool) -> Void)? = nil
+
+    // MARK: - State
+
+    @State private var selectedPath: [(row: Int, col: Int)] = []
+    @State private var cellStates: [[StreaksCellState]]
+    @State private var isComplete: Bool = false
 
     // MARK: - Init
 
@@ -68,7 +67,36 @@ public struct StreaksGameView: View {
         .coordinateSpace(name: "streaksGrid")
     }
 
-    // MARK: - Layout
+    // MARK: - Modifiers
+
+    /// Replace the default grid cell with a custom view conforming to `StreaksCellProtocol`,
+    /// and set the spacing between cells.
+    public func grid<T: StreaksCellProtocol>(spacing: CGFloat, cell: T.Type) -> Self {
+        var copy = self
+        copy.gridSpacing = spacing
+        copy.cellFactory = { row, col, state in
+            AnyView(T(row: row, column: col, state: state))
+        }
+        return copy
+    }
+
+    /// Called each time the player extends the path by one cell.
+    /// - Parameter handler: Receives the current path as an ordered array of `(row:col:)` coordinates.
+    public func onInput(_ handler: @escaping (_ path: [(row: Int, col: Int)]) -> Void) -> Self {
+        var copy = self
+        copy.onInputCallback = handler
+        return copy
+    }
+
+    /// Called when the player successfully connects every cell in the grid.
+    /// - Parameter handler: Receives `true` when the streak is complete.
+    public func onCompletion(_ handler: @escaping (_ didWin: Bool) -> Void) -> Self {
+        var copy = self
+        copy.onCompletionCallback = handler
+        return copy
+    }
+
+    // MARK: - Helpers
 
     private func cellWidth(totalWidth: CGFloat) -> CGFloat {
         (totalWidth - gridSpacing * CGFloat(model.columns - 1)) / CGFloat(model.columns)
@@ -91,8 +119,6 @@ public struct StreaksGameView: View {
             }
         }
     }
-
-    // MARK: - Gesture Handling
 
     private func processDrag(at point: CGPoint, cellWidth: CGFloat, cellHeight: CGFloat) {
         guard !isComplete else { return }
@@ -133,34 +159,5 @@ public struct StreaksGameView: View {
 
     private func isAdjacent(_ a: (row: Int, col: Int), _ b: (row: Int, col: Int)) -> Bool {
         abs(a.row - b.row) <= 1 && abs(a.col - b.col) <= 1
-    }
-
-    // MARK: - Modifiers
-
-    /// Replace the default grid cell with a custom view conforming to `StreaksCellProtocol`,
-    /// and set the spacing between cells.
-    public func grid<T: StreaksCellProtocol>(spacing: CGFloat, cell: T.Type) -> Self {
-        var copy = self
-        copy.gridSpacing = spacing
-        copy.cellFactory = { row, col, state in
-            AnyView(T(row: row, column: col, state: state))
-        }
-        return copy
-    }
-
-    /// Called each time the player extends the path by one cell.
-    /// - Parameter handler: Receives the current path as an ordered array of `(row:col:)` coordinates.
-    public func onInput(_ handler: @escaping (_ path: [(row: Int, col: Int)]) -> Void) -> Self {
-        var copy = self
-        copy.onInputCallback = handler
-        return copy
-    }
-
-    /// Called when the player successfully connects every cell in the grid.
-    /// - Parameter handler: Receives `true` when the streak is complete.
-    public func onCompletion(_ handler: @escaping (_ didWin: Bool) -> Void) -> Self {
-        var copy = self
-        copy.onCompletionCallback = handler
-        return copy
     }
 }
