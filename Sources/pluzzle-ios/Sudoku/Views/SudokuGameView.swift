@@ -40,18 +40,23 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     // MARK: - State
 
     @State private var selectedIndex: Int? = nil
-    @State private var isNotesMode: Bool = false
 
     @Binding var model: Model
+    @Binding var isNotesMode: Bool
 
     // MARK: - Init
 
     /// Creates a new Sudoku game view.
     ///
-    /// - Parameter model: A binding to any ``SudokuGameModelProtocol`` value held as `@State`
-    ///   in the parent view — player moves are written back to `model.state` automatically.
-    public init(model: Binding<Model>) {
+    /// - Parameters:
+    ///   - model: A binding to any ``SudokuGameModelProtocol`` value held as `@State`
+    ///     in the parent view — player moves are written back to `model.state` automatically.
+    ///   - isNotesMode: A binding to a `Bool` that controls whether the view is in notes
+    ///     (pencil-mark) mode. Manage this in the parent so the same state can drive
+    ///     an external toggle button or toolbar item.
+    public init(model: Binding<Model>, isNotesMode: Binding<Bool>) {
         self._model = model
+        self._isNotesMode = isNotesMode
     }
 
     private var n: Int { model.grid.count }

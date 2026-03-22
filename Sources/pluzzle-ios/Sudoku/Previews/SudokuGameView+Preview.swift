@@ -11,7 +11,8 @@ import SwiftUI
         m.notes![5][1] = [1, 3]
         return m
     }()
-    SudokuGameView(model: $model)
+    @Previewable @State var isNotesMode = false
+    SudokuGameView(model: $model, isNotesMode: $isNotesMode)
         .grid(spacing: 1, cell: SudokuGameCell.self)
         .input(cell: SudokuInputPadCell.self)
         .onInput { row, col, value in
