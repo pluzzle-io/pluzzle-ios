@@ -26,5 +26,6 @@ struct SudokuInputPadCell: View, InputPadCellProtocol {
             )
             .onTapGesture { onTap() }
             .clipShape(RoundedRectangle(cornerRadius: 8))
+//            .frame(maxHeight: 50)
     }
 }

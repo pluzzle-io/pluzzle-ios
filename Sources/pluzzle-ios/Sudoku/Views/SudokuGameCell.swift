@@ -37,7 +37,6 @@ struct SudokuGameCell: View, SudokuCellProtocol {
                                 .font(.system(size: 8, weight: .regular))
                                 .foregroundStyle(.white.opacity(0.85))
                                 .minimumScaleFactor(0.5)
-                                .frame(maxWidth: .infinity)
                         }
                     }
                     .padding(2)

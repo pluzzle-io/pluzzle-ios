@@ -2,16 +2,20 @@ import SwiftUI
 
 /// A SwiftUI view that presents a fully interactive Sudoku puzzle.
 ///
-/// Provide a ``SudokuGameModel`` and optionally chain builder modifiers before inserting
-/// the view into the hierarchy:
+/// Provide a ``SudokuGameModel`` and a binding to a notes-mode flag, then optionally chain
+/// builder modifiers before inserting the view into the hierarchy:
 ///
 /// ```swift
 /// @State private var model = SudokuGameModel.example
+/// @State private var isNotesMode = false
 ///
 /// var body: some View {
-///     SudokuGameView(model: model)
+///     SudokuGameView(model: $model, isNotesMode: $isNotesMode)
 ///         .grid(spacing: 2, cell: MyCell.self)
 ///         .input(cell: MyPadButton.self)
+///         .accessoryView {
+///             Button("Notes") { isNotesMode.toggle() }
+///         }
 ///         .onInput { row, col, value in print("Entered \(value ?? 0)") }
 ///         .onCompletion { isCorrect in showResult = true }
 /// }
@@ -20,12 +24,25 @@ import SwiftUI
 /// Because ``SudokuGameModel`` is a struct passed via binding, every cell the player fills in is
 /// written back to `model.state` automatically — the parent view always has the current puzzle state.
 ///
+/// ### Layout
+/// The view adapts to the device orientation automatically:
+/// - **Portrait** — the grid fills the available width (aspect-ratio 1:1) and claims space before
+///   the accessory view and number pad below it.
+/// - **Landscape** — the grid fills the available height on the left; the accessory view and
+///   number pad stack vertically in the right column.
+///
 /// ### Interactions
 /// - **Tap** an editable cell to select it, then tap a number on the pad below to fill it.
-/// - Tap the **Notes** toggle button to switch between entering digits and pencilling in candidates.
+/// - Toggle `isNotesMode` from your own control (e.g. a button placed in `.accessoryView {}`)
+///   to switch between entering digits and pencilling in candidates.
 ///   In notes mode tapping a number adds or removes it from `model.notes` for the selected cell.
 ///   Entering a digit in normal mode clears that cell's notes automatically.
 /// - Call `model.reset()` from the parent to programmatically reset the board.
+///
+/// ### Accessory view
+/// Use the ``accessoryView(_:)`` modifier to insert any custom view between the grid and the
+/// number pad (or above the pad in landscape). This is the recommended place to add a notes
+/// toggle button, an undo button, or any other game control.
 ///
 /// ### Completion
 /// ``onCompletion(_:)`` fires once every cell is filled.
@@ -52,9 +69,9 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     ///   - model: A binding to any ``SudokuGameModelProtocol`` value held as `@State`
     ///     in the parent view — player moves are written back to `model.state` automatically.
     ///   - isNotesMode: A binding to a `Bool` that controls whether the view is in notes
-    ///     (pencil-mark) mode. Manage this in the parent so the same state can drive
-    ///     an external toggle button or toolbar item.
-    public init(model: Binding<Model>, isNotesMode: Binding<Bool>) {
+    ///     (pencil-mark) mode. Defaults to `.constant(false)` — pass a real binding when you
+    ///     want to drive an external toggle button or toolbar item.
+    public init(model: Binding<Model>, isNotesMode: Binding<Bool> = .constant(false)) {
         self._model = model
         self._isNotesMode = isNotesMode
     }
@@ -74,6 +91,8 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
         AnyView(SudokuInputPadCell(label: label, onTap: onTap))
     }
 
+    private var accessoryViewFactory: (() -> AnyView)? = nil
+
     // Callbacks
     private var onInputCallback: ((_ row: Int, _ col: Int, _ value: Int?) -> Void)? = nil
     private var onCompletionCallback: ((Bool) -> Void)? = nil
@@ -90,111 +109,145 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
 
     public var body: some View {
         GeometryReader { screen in
-        ScrollView {
-        VStack(spacing: 12) {
-            // Use a zero-size Color as the aspect-ratio anchor so the GeometryReader
-            // receives a square frame rather than expanding to fill all available height.
-            Color.clear
-                .aspectRatio(1, contentMode: .fit)
-                .overlay {
-                    GeometryReader { gp in
-                        let totalHSpacing = gridSpacing * CGFloat(m - 1)
-                        let availableWidth = gp.size.width - totalHSpacing
-                        let cellSize = availableWidth / CGFloat(m)
-
-                        LazyVGrid(columns: columns, spacing: gridSpacing) {
-                            ForEach(0..<count, id: \.self) { index in
-                                let row = index / m
-                                let col = index % m
-                                let fixedValue = model.grid[row][col]
-                                let isFixed = fixedValue != nil
-
-                                let displayValue = fixedValue ?? model.state[safe: row]?[safe: col] ?? nil
-                                let text = displayValue.map(String.init) ?? ""
-                                let cellNotes = model.notes?[safe: row]?[safe: col] ?? []
-
-                                let isSelected = Binding<Bool>(
-                                    get: { selectedIndex == index },
-                                    set: { newValue in
-                                        if !isFixed {
-                                            selectedIndex = newValue ? index : nil
-                                        }
-                                    }
-                                )
-
-                                cellFactory(index, isSelected, text, isFixed, cellNotes)
-                                    .frame(width: cellSize, height: cellSize)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        guard !isFixed else { return }
-                                        withAnimation(.easeInOut(duration: 0.15)) {
-                                            selectedIndex = (selectedIndex == index) ? nil : index
-                                        }
-                                    }
-                            }
-                        }
-                        .overlay {
-                            LazyVGrid(columns: overlayColumns, spacing: 0) {
-                                ForEach(0..<9, id: \.self) { _ in
-                                    Rectangle()
-                                        .fill(.clear)
-                                        .frame(width: gp.size.width / 3, height: gp.size.width / 3)
-                                        .border(dividerColor, width: dividerThickness)
-                                }
-                            }
-                            .border(dividerColor, width: dividerThickness * 1.5)
-                        }
-                    }
-                }
-                .border(dividerColor, width: dividerThickness * 2)
-
-            // Notes mode toggle
-            Button {
-                isNotesMode.toggle()
-            } label: {
-                Label("Notes", systemImage: "pencil")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(isNotesMode ? .white : .primary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .background(isNotesMode ? Color.indigo : Color.gray.opacity(0.15))
-                    .clipShape(Capsule())
+            if screen.size.width > screen.size.height {
+                landscapeBody(screen: screen)
+            } else {
+                portraitBody(screen: screen)
             }
+        }
+    }
 
-            // Number Pad (factory-driven, no Clear)
-            SudokuNumberPad(
-                makeCell: inputPadFactory,
-                onInput: { number in
-                    guard let idx = selectedIndex else { return }
-                    let row = idx / m
-                    let col = idx % m
-                    guard model.grid[row][col] == nil else { return }
-                    if isNotesMode {
-                        if model.notes == nil {
-                            model.notes = Array(repeating: Array(repeating: Set<Int>(), count: m), count: n)
+    // MARK: - Layout variants
+
+    @ViewBuilder
+    private func portraitBody(screen: GeometryProxy) -> some View {
+        let hPad: CGFloat = 12
+        let vPad: CGFloat = 8
+        VStack(spacing: 12) {
+            // layoutPriority(1) ensures the grid claims space first;
+            // aspectRatio(1, .fit) then constrains it to a square.
+            // Controls receive whatever height remains.
+            Color.clear
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .aspectRatio(1, contentMode: .fit)
+                .overlay { gridOverlay }
+                .border(dividerColor, width: dividerThickness * 2)
+                .layoutPriority(1)
+            accessoryViewFactory.map { $0() }
+            numberPad
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, hPad)
+        .padding(.vertical, vPad)
+        .frame(width: screen.size.width, height: screen.size.height)
+    }
+
+    @ViewBuilder
+    private func landscapeBody(screen: GeometryProxy) -> some View {
+        let hPad: CGFloat = 12
+        let vPad: CGFloat = 8
+        // Grid fills available height (screen minus top + bottom padding), staying 1:1.
+        // Explicit frame is required so the HStack gives the remaining width to the right column.
+        let gridSize = screen.size.height - vPad * 2
+        HStack(alignment: .center, spacing: 16) {
+            Color.clear
+                .frame(width: gridSize, height: gridSize)
+                .overlay { gridOverlay }
+                .border(dividerColor, width: dividerThickness * 2)
+            VStack(spacing: 12) {
+                accessoryViewFactory.map { $0() }
+                numberPad
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, maxHeight: gridSize)
+        }
+        .padding(.horizontal, hPad)
+        .padding(.vertical, vPad)
+        .frame(width: screen.size.width, height: screen.size.height)
+    }
+
+    // MARK: - Shared sub-views
+
+    @ViewBuilder
+    private var gridOverlay: some View {
+        GeometryReader { gp in
+            let totalHSpacing = gridSpacing * CGFloat(m - 1)
+            let availableWidth = gp.size.width - totalHSpacing
+            let cellSize = availableWidth / CGFloat(m)
+
+            LazyVGrid(columns: columns, spacing: gridSpacing) {
+                ForEach(0..<count, id: \.self) { index in
+                    let row = index / m
+                    let col = index % m
+                    let fixedValue = model.grid[row][col]
+                    let isFixed = fixedValue != nil
+
+                    let displayValue = fixedValue ?? model.state[safe: row]?[safe: col] ?? nil
+                    let text = displayValue.map(String.init) ?? ""
+                    let cellNotes = model.notes?[safe: row]?[safe: col] ?? []
+
+                    let isSelected = Binding<Bool>(
+                        get: { selectedIndex == index },
+                        set: { newValue in
+                            if !isFixed {
+                                selectedIndex = newValue ? index : nil
+                            }
                         }
-                        if model.notes![row][col].contains(number) {
-                            model.notes![row][col].remove(number)
-                        } else {
-                            model.notes![row][col].insert(number)
+                    )
+
+                    cellFactory(index, isSelected, text, isFixed, cellNotes)
+                        .frame(width: cellSize, height: cellSize)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            guard !isFixed else { return }
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                selectedIndex = (selectedIndex == index) ? nil : index
+                            }
                         }
-                    } else {
-                        model.state[row][col] = number
-                        model.notes?[row][col] = []
-                        onInputCallback?(row, col, number)
-                        if model.isComplete {
-                            onCompletionCallback?(model.isCorrect)
-                        }
+                }
+            }
+            .overlay {
+                LazyVGrid(columns: overlayColumns, spacing: 0) {
+                    ForEach(0..<9, id: \.self) { _ in
+                        Rectangle()
+                            .fill(.clear)
+                            .frame(width: gp.size.width / 3, height: gp.size.width / 3)
+                            .border(dividerColor, width: dividerThickness)
                     }
                 }
-            )
+                .border(dividerColor, width: dividerThickness * 1.5)
+            }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .frame(minHeight: screen.size.height)
-        } // end ScrollView
-        .frame(width: screen.size.width, height: screen.size.height)
-        } // end GeometryReader
+    }
+
+    @ViewBuilder
+    private var numberPad: some View {
+        SudokuNumberPad(
+            makeCell: inputPadFactory,
+            onInput: { number in
+                guard let idx = selectedIndex else { return }
+                let row = idx / m
+                let col = idx % m
+                guard model.grid[row][col] == nil else { return }
+                if isNotesMode {
+                    if model.notes == nil {
+                        model.notes = Array(repeating: Array(repeating: Set<Int>(), count: m), count: n)
+                    }
+                    if model.notes![row][col].contains(number) {
+                        model.notes![row][col].remove(number)
+                    } else {
+                        model.notes![row][col].insert(number)
+                    }
+                } else {
+                    model.state[row][col] = number
+                    model.notes?[row][col] = []
+                    onInputCallback?(row, col, number)
+                    if model.isComplete {
+                        onCompletionCallback?(model.isCorrect)
+                    }
+                }
+            }
+        )
     }
 
     // MARK: - Modifiers (generic API, type-erased storage)
@@ -236,6 +289,15 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
         copy.inputPadFactory = { label, onTap in
             AnyView(T(label: label, onTap: onTap))
         }
+        return copy
+    }
+
+    /// Inserts a custom view between the grid and the input pad.
+    /// In landscape mode it appears above the input pad in the right column.
+    /// - Parameter content: A `@ViewBuilder` closure returning the view to insert.
+    public func accessoryView<V: View>(@ViewBuilder _ content: @escaping () -> V) -> Self {
+        var copy = self
+        copy.accessoryViewFactory = { AnyView(content()) }
         return copy
     }
 
