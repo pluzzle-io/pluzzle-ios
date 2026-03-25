@@ -33,9 +33,19 @@ public protocol SudokuCellProtocol: View {
     ///   - notes: The candidate digits (1–9) the player has pencilled in for this cell.
     ///     `nil` when no notes have been written. Displayed only when `text` is empty.
     init(isSelected: Bool, text: String, isFixed: Bool, notes: Set<Int>?)
+
+    /// Creates a cell view and receives the cell's zero-based grid index (0 = top-left, 80 =
+    /// bottom-right for a 9×9 puzzle). Override this init to act on the position; the default
+    /// implementation simply forwards to ``init(isSelected:text:isFixed:notes:)``.
+    init(isSelected: Bool, text: String, isFixed: Bool, notes: Set<Int>?, index: Int)
 }
 
 extension SudokuCellProtocol {
+    /// Default: ignores `index` and delegates to the primary init (backward compatible).
+    public init(isSelected: Bool, text: String, isFixed: Bool, notes: Set<Int>?, index: Int) {
+        self.init(isSelected: isSelected, text: text, isFixed: isFixed, notes: notes)
+    }
+
     /// Convenience initialiser that omits `notes`, defaulting to `nil`.
     public init(isSelected: Bool, text: String, isFixed: Bool) {
         self.init(isSelected: isSelected, text: text, isFixed: isFixed, notes: nil)

@@ -84,9 +84,9 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     private var count: Int { n * m }
 
     // Type-erased factories (default implementations)
-    private var cellFactory: (_ isSelected: Bool, _ text: String, _ isFixed: Bool, _ notes: Set<Int>?) -> AnyView =
-    { isSelected, text, isFixed, notes in
-        AnyView(SudokuGameCell(isSelected: isSelected, text: text, isFixed: isFixed, notes: notes))
+    private var cellFactory: (_ isSelected: Bool, _ text: String, _ isFixed: Bool, _ notes: Set<Int>?, _ index: Int) -> AnyView =
+    { isSelected, text, isFixed, notes, index in
+        AnyView(SudokuGameCell(isSelected: isSelected, text: text, isFixed: isFixed, notes: notes, index: index))
     }
 
     private var inputPadFactory: (_ label: String, _ onTap: @escaping () -> Void) -> AnyView =
@@ -193,7 +193,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
                     let cellNotes: Set<Int>? = model.notes?[safe: row]?[safe: col]
                     let isSelected = selectedIndex == index
 
-                    cellFactory(isSelected, text, isFixed, cellNotes)
+                    cellFactory(isSelected, text, isFixed, cellNotes, index)
                         .frame(width: cellSize, height: cellSize)
                         .contentShape(Rectangle())
                         .onTapGesture {
@@ -256,8 +256,8 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     public func grid<T: SudokuCellProtocol>(spacing: CGFloat, cell: T.Type) -> Self {
         var copy = self
         copy.gridSpacing = spacing
-        copy.cellFactory = { isSelected, text, isFixed, notes in
-            AnyView(T(isSelected: isSelected, text: text, isFixed: isFixed, notes: notes))
+        copy.cellFactory = { isSelected, text, isFixed, notes, index in
+            AnyView(T(isSelected: isSelected, text: text, isFixed: isFixed, notes: notes, index: index))
         }
         return copy
     }
@@ -270,7 +270,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     ///   - dividerThickness: The base stroke width of the box-divider lines.
     public func grid<T: SudokuCellProtocol>(spacing: CGFloat, cell: T.Type, dividerColor: Color, dividerThickness: CGFloat) -> Self {
         var copy = self.grid(spacing: spacing, cell: cell)
-        copy.dividerColor = dividerColor
+        copy.dividerColor     = dividerColor
         copy.dividerThickness = dividerThickness
         return copy
     }
