@@ -84,8 +84,8 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     private var count: Int { n * m }
 
     // Type-erased factories (default implementations)
-    private var cellFactory: (_ index: Int, _ isSelected: Binding<Bool>, _ text: String, _ isFixed: Bool, _ notes: Set<Int>?) -> AnyView =
-    { _, isSelected, text, isFixed, notes in
+    private var cellFactory: (_ isSelected: Bool, _ text: String, _ isFixed: Bool, _ notes: Set<Int>?) -> AnyView =
+    { isSelected, text, isFixed, notes in
         AnyView(SudokuGameCell(isSelected: isSelected, text: text, isFixed: isFixed, notes: notes))
     }
 
@@ -191,23 +191,16 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
                     let displayValue = fixedValue ?? model.state[safe: row]?[safe: col] ?? nil
                     let text = displayValue.map(String.init) ?? ""
                     let cellNotes: Set<Int>? = model.notes?[safe: row]?[safe: col]
+                    let isSelected = selectedIndex == index
 
-                    let isSelected = Binding<Bool>(
-                        get: { selectedIndex == index },
-                        set: { newValue in
-                            guard !isFixed else { return }
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                selectedIndex = newValue ? index : nil
-                            }
-                        }
-                    )
-
-                    cellFactory(index, isSelected, text, isFixed, cellNotes)
+                    cellFactory(isSelected, text, isFixed, cellNotes)
                         .frame(width: cellSize, height: cellSize)
                         .contentShape(Rectangle())
                         .onTapGesture {
                             guard !isFixed else { return }
-                            isSelected.wrappedValue = (selectedIndex != index)
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                selectedIndex = isSelected ? nil : index
+                            }
                         }
                 }
             }
@@ -263,7 +256,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     public func grid<T: SudokuCellProtocol>(spacing: CGFloat, cell: T.Type) -> Self {
         var copy = self
         copy.gridSpacing = spacing
-        copy.cellFactory = { _, isSelected, text, isFixed, notes in
+        copy.cellFactory = { isSelected, text, isFixed, notes in
             AnyView(T(isSelected: isSelected, text: text, isFixed: isFixed, notes: notes))
         }
         return copy

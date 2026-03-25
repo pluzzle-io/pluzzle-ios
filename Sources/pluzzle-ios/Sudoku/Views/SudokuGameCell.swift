@@ -12,13 +12,13 @@ import SwiftUI
 ///
 /// The displayed number animates via `numericText` content transition when the value changes.
 struct SudokuGameCell: View, SudokuCellProtocol {
-    @Binding var isSelected: Bool
+    var isSelected: Bool
     var text: String
     var isFixed: Bool
     var notes: Set<Int>?
 
-    init(isSelected: Binding<Bool>, text: String, isFixed: Bool, notes: Set<Int>? = nil) {
-        self._isSelected = isSelected
+    init(isSelected: Bool, text: String, isFixed: Bool, notes: Set<Int>? = nil) {
+        self.isSelected = isSelected
         self.text = text
         self.isFixed = isFixed
         self.notes = notes

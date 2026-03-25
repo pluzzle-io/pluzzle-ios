@@ -16,19 +16,38 @@ import SwiftUI
         .grid(spacing: 1, cell: SudokuGameCell.self)
         .input(cell: SudokuInputPadCell.self)
         .accessoryView {
-            Color.red
-                .overlay {
+            ZStack {
+                Color.red
+                HStack(spacing: 12) {
                     Button {
                         isNotesMode.toggle()
                     } label: {
-                        Text(isNotesMode ? "Notes ON" : "Notes OFF")
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(isNotesMode ? Color.blue : Color.gray.opacity(0.2))
-                            .foregroundStyle(isNotesMode ? .white : .primary)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        Label(
+                            isNotesMode ? "Notes On" : "Notes Off",
+                            systemImage: isNotesMode ? "pencil.circle.fill" : "pencil.circle"
+                        )
+                        .font(.subheadline.bold())
+                        .foregroundStyle(isNotesMode ? Color.blue : Color.secondary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(
+                            isNotesMode ? Color.blue.opacity(0.12) : Color(.systemGray6),
+                            in: Capsule()
+                        )
+                    }
+                    Button {
+                        model.reset()
+                    } label: {
+                        Label("Reset", systemImage: "arrow.counterclockwise")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(Color.secondary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(Color(.systemGray6), in: Capsule())
                     }
                 }
+                .frame(maxWidth: .infinity)
+            }
         }
         .onInput { row, col, value in
             print("Placed \(value.map(String.init) ?? "nil") at (\(row), \(col))")
