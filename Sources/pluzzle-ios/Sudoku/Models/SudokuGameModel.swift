@@ -41,6 +41,20 @@ public struct SudokuGameModel: SudokuGameModelProtocol {
     ///   - solution: The fully solved grid used to check the player's answers.
     ///   - state: The player's current grid state. Defaults to `grid` (no progress) if omitted.
     public init(grid: [[Int?]], solution: [[Int]], state: [[Int?]]? = nil) {
+        precondition(
+            grid.count == 9 && grid.allSatisfy { $0.count == 9 },
+            "SudokuGameModel: grid must be 9×9"
+        )
+        precondition(
+            solution.count == 9 && solution.allSatisfy { $0.count == 9 },
+            "SudokuGameModel: solution must be 9×9"
+        )
+        if let state {
+            precondition(
+                state.count == 9 && state.allSatisfy { $0.count == 9 },
+                "SudokuGameModel: state must be 9×9"
+            )
+        }
         self.grid = grid
         self.solution = solution
         self.state = state ?? grid

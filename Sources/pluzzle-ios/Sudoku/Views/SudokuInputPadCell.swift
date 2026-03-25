@@ -16,16 +16,18 @@ struct SudokuInputPadCell: View, InputPadCellProtocol {
     }
 
     var body: some View {
-        Rectangle()
-            .fill(Color.blue)
-            .overlay(
-                Text(label)
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .padding(.vertical, 8)
-            )
-            .onTapGesture { onTap() }
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-//            .frame(maxHeight: 50)
+        Button(action: onTap) {
+            Rectangle()
+                .fill(Color.blue)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    Text(label)
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .padding(.vertical, 8)
+                )
+        }
+        .buttonStyle(.plain)
+        .frame(maxHeight: 50)
     }
 }

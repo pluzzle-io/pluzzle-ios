@@ -40,15 +40,21 @@ public protocol SudokuGameModelProtocol: Sendable {
 public extension SudokuGameModelProtocol {
     /// `true` when every cell has been filled (regardless of correctness).
     var isComplete: Bool {
-        grid.indices.allSatisfy { r in
-            grid[r].indices.allSatisfy { c in state[r][c] != nil }
+        guard state.count == grid.count else { return false }
+        return grid.indices.allSatisfy { r in
+            guard r < state.count, state[r].count == grid[r].count else { return false }
+            return grid[r].indices.allSatisfy { c in state[r][c] != nil }
         }
     }
 
     /// `true` when every cell's entry matches the solution.
     var isCorrect: Bool {
-        grid.indices.allSatisfy { r in
-            grid[r].indices.allSatisfy { c in state[r][c] == solution[r][c] }
+        guard state.count == grid.count, solution.count == grid.count else { return false }
+        return grid.indices.allSatisfy { r in
+            guard r < state.count, r < solution.count,
+                  state[r].count == grid[r].count,
+                  solution[r].count == grid[r].count else { return false }
+            return grid[r].indices.allSatisfy { c in state[r][c] == solution[r][c] }
         }
     }
 }

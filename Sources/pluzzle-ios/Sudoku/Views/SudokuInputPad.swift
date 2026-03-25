@@ -19,16 +19,18 @@ struct SudokuInputPad: View, InputPadCellProtocol {
     }
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(.indigo)
-                .shadow(radius: 1, x: 0, y: 1)
-            Text(label)
-                .font(.headline)
-                .foregroundStyle(.white)
-                .padding(.vertical, 10)
+        Button(action: onTap) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(.indigo)
+                    .shadow(radius: 1, x: 0, y: 1)
+                Text(label)
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .padding(.vertical, 10)
+            }
         }
-        .onTapGesture { onTap() }
+        .buttonStyle(.plain)
         .frame(height: 50)
     }
 }

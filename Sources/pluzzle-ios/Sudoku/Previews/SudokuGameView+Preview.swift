@@ -16,16 +16,19 @@ import SwiftUI
         .grid(spacing: 1, cell: SudokuGameCell.self)
         .input(cell: SudokuInputPadCell.self)
         .accessoryView {
-            Button {
-                isNotesMode.toggle()
-            } label: {
-                Text(isNotesMode ? "Notes ON" : "Notes OFF")
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(isNotesMode ? Color.blue : Color.gray.opacity(0.2))
-                    .foregroundStyle(isNotesMode ? .white : .primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
+            Color.red
+                .overlay {
+                    Button {
+                        isNotesMode.toggle()
+                    } label: {
+                        Text(isNotesMode ? "Notes ON" : "Notes OFF")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(isNotesMode ? Color.blue : Color.gray.opacity(0.2))
+                            .foregroundStyle(isNotesMode ? .white : .primary)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                }
         }
         .onInput { row, col, value in
             print("Placed \(value.map(String.init) ?? "nil") at (\(row), \(col))")

@@ -57,6 +57,9 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     // MARK: - State
 
     @State private var selectedIndex: Int? = nil
+    /// Guards `onCompletionCallback` so it fires at most once per completed board.
+    /// Reset automatically when the board goes back to incomplete (e.g. after `model.reset()`).
+    @State private var completionFired = false
 
     @Binding var model: Model
     @Binding var isNotesMode: Bool
@@ -98,12 +101,12 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     private var onCompletionCallback: ((Bool) -> Void)? = nil
 
     /// Grid items for the n×m cell layout, with uniform horizontal spacing.
-    var columns: [GridItem] {
+    private var columns: [GridItem] {
         Array(repeating: GridItem(.flexible(), spacing: gridSpacing), count: m)
     }
 
     /// Grid items for the 3×3 box-border overlay (only visually meaningful on a 9×9 grid).
-    var overlayColumns: [GridItem] {
+    private var overlayColumns: [GridItem] {
         Array(repeating: GridItem(.flexible(), spacing: 0), count: 3)
     }
 
@@ -114,6 +117,9 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
             } else {
                 portraitBody(screen: screen)
             }
+        }
+        .onChange(of: model.isComplete) { _, isComplete in
+            if !isComplete { completionFired = false }
         }
     }
 
@@ -133,7 +139,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
                 .overlay { gridOverlay }
                 .border(dividerColor, width: dividerThickness * 2)
                 .layoutPriority(1)
-            accessoryViewFactory.map { $0() }
+            if let accessoryViewFactory { accessoryViewFactory() }
             numberPad
             Spacer(minLength: 0)
         }
@@ -155,7 +161,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
                 .overlay { gridOverlay }
                 .border(dividerColor, width: dividerThickness * 2)
             VStack(spacing: 12) {
-                accessoryViewFactory.map { $0() }
+                if let accessoryViewFactory { accessoryViewFactory() }
                 numberPad
                 Spacer(minLength: 0)
             }
@@ -184,12 +190,13 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
 
                     let displayValue = fixedValue ?? model.state[safe: row]?[safe: col] ?? nil
                     let text = displayValue.map(String.init) ?? ""
-                    let cellNotes = model.notes?[safe: row]?[safe: col] ?? []
+                    let cellNotes: Set<Int>? = model.notes?[safe: row]?[safe: col]
 
                     let isSelected = Binding<Bool>(
                         get: { selectedIndex == index },
                         set: { newValue in
-                            if !isFixed {
+                            guard !isFixed else { return }
+                            withAnimation(.easeInOut(duration: 0.15)) {
                                 selectedIndex = newValue ? index : nil
                             }
                         }
@@ -200,9 +207,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
                         .contentShape(Rectangle())
                         .onTapGesture {
                             guard !isFixed else { return }
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                selectedIndex = (selectedIndex == index) ? nil : index
-                            }
+                            isSelected.wrappedValue = (selectedIndex != index)
                         }
                 }
             }
@@ -230,19 +235,18 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
                 let col = idx % m
                 guard model.grid[row][col] == nil else { return }
                 if isNotesMode {
-                    if model.notes == nil {
-                        model.notes = Array(repeating: Array(repeating: Set<Int>(), count: m), count: n)
-                    }
-                    if model.notes![row][col].contains(number) {
-                        model.notes![row][col].remove(number)
+                    model.notes = model.notes ?? Array(repeating: Array(repeating: Set<Int>(), count: m), count: n)
+                    if model.notes?[row][col].contains(number) == true {
+                        model.notes?[row][col].remove(number)
                     } else {
-                        model.notes![row][col].insert(number)
+                        model.notes?[row][col].insert(number)
                     }
                 } else {
                     model.state[row][col] = number
                     model.notes?[row][col] = []
                     onInputCallback?(row, col, number)
-                    if model.isComplete {
+                    if model.isComplete && !completionFired {
+                        completionFired = true
                         onCompletionCallback?(model.isCorrect)
                     }
                 }
@@ -272,11 +276,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     ///   - dividerColor: The color used to draw the thick lines separating the 3×3 boxes.
     ///   - dividerThickness: The base stroke width of the box-divider lines.
     public func grid<T: SudokuCellProtocol>(spacing: CGFloat, cell: T.Type, dividerColor: Color, dividerThickness: CGFloat) -> Self {
-        var copy = self
-        copy.gridSpacing = spacing
-        copy.cellFactory = { _, isSelected, text, isFixed, notes in
-            AnyView(T(isSelected: isSelected, text: text, isFixed: isFixed, notes: notes))
-        }
+        var copy = self.grid(spacing: spacing, cell: cell)
         copy.dividerColor = dividerColor
         copy.dividerThickness = dividerThickness
         return copy

@@ -11,19 +11,19 @@ struct SudokuNumberPad: View {
     /// Called with the integer value (1–9) when a button is tapped.
     var onInput: (Int) -> Void
 
-    private let rows: [[String]] = [
-        ["1", "2", "3"],
-        ["4", "5", "6"],
-        ["7", "8", "9"]
+    private let rows: [[Int]] = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]
     ]
 
     var body: some View {
         VStack(spacing: 8) {
             ForEach(0..<rows.count, id: \.self) { r in
                 HStack(spacing: 8) {
-                    ForEach(rows[r], id: \.self) { label in
-                        makeCell(label) {
-                            onInput(Int(label)!)
+                    ForEach(rows[r], id: \.self) { number in
+                        makeCell("\(number)") {
+                            onInput(number)
                         }
                     }
                 }
