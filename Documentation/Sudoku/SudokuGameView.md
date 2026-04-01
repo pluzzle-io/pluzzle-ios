@@ -10,13 +10,25 @@ Hold a `SudokuGameModel` as `@State` and pass it to `SudokuGameView` via a bindi
 
 ```swift
 @State private var model = SudokuGameModel.example
+@State private var isNotesMode = false
 
 var body: some View {
-    SudokuGameView(model: $model)
+    SudokuGameView(model: $model, isNotesMode: $isNotesMode)
 }
 ```
 
 Because the model is passed as a `Binding`, every cell the player fills in is written back to `model.state` automatically — the parent view always has the current puzzle state.
+
+### Initialiser
+
+```swift
+public init(model: Binding<Model>, isNotesMode: Binding<Bool> = .constant(false))
+```
+
+| Parameter | Type | Description |
+|---|---|---|
+| `model` | `Binding<Model>` | A binding to any `SudokuGameModelProtocol` value held as `@State`. |
+| `isNotesMode` | `Binding<Bool>` | When `true`, tapping a number pencils in a candidate rather than filling the cell. Defaults to `.constant(false)`. |
 
 ---
 
@@ -134,28 +146,35 @@ SudokuGameView(model: $model)
 
 ```swift
 public protocol SudokuCellProtocol: View {
-    init(isSelected: Binding<Bool>, text: String, isFixed: Bool)
+    init(isSelected: Bool, text: String, isFixed: Bool, notes: Set<Int>?)
+    init(isSelected: Bool, text: String, isFixed: Bool, notes: Set<Int>?, index: Int)
 }
 ```
 
 | Parameter | Type | Description |
 |---|---|---|
-| `isSelected` | `Binding<Bool>` | Whether this cell is currently selected. |
+| `isSelected` | `Bool` | Whether this cell is currently selected. |
 | `text` | `String` | The digit to display (`"1"`–`"9"`), or empty if blank. |
 | `isFixed` | `Bool` | `true` if the cell was pre-filled and cannot be edited. |
+| `notes` | `Set<Int>?` | Candidate digits the player has pencilled in. `nil` when no notes exist for this cell. |
+| `index` | `Int` | Zero-based linear index of the cell (0 = top-left, 80 = bottom-right). Override the `index:` init to act on cell position. |
+
+The `index:` init has a default implementation that forwards to the primary init — conforming types only need to implement `init(isSelected:text:isFixed:notes:)`.
 
 Example:
 
 ```swift
 struct MyCell: View, SudokuCellProtocol {
-    @Binding var isSelected: Bool
+    var isSelected: Bool
     var text: String
     var isFixed: Bool
+    var notes: Set<Int>?
 
-    init(isSelected: Binding<Bool>, text: String, isFixed: Bool) {
-        self._isSelected = isSelected
+    init(isSelected: Bool, text: String, isFixed: Bool, notes: Set<Int>? = nil) {
+        self.isSelected = isSelected
         self.text = text
         self.isFixed = isFixed
+        self.notes = notes
     }
 
     var body: some View {
@@ -222,6 +241,24 @@ struct MyPadButton: View, InputPadCellProtocol {
 
 ---
 
+## Accessory View — `.accessoryView(_:)`
+
+Insert any custom view between the grid and the number pad. In landscape mode it appears above the pad in the right column. This is the recommended location for a notes toggle, an undo button, or any other game control.
+
+```swift
+SudokuGameView(model: $model, isNotesMode: $isNotesMode)
+    .accessoryView {
+        HStack {
+            Button("Reset") { model.reset() }
+            Spacer()
+            Toggle("Notes", isOn: $isNotesMode)
+        }
+        .padding(.horizontal)
+    }
+```
+
+---
+
 ## Callbacks
 
 ### `.onInput(_:)`
@@ -258,21 +295,26 @@ SudokuGameView(model: $model)
 
 ```swift
 @State private var model = SudokuGameModel.example
+@State private var isNotesMode = false
 
 var body: some View {
-    VStack {
-        Button("Reset") { model.reset() }
-
-        SudokuGameView(model: $model)
-            .grid(spacing: 2, cell: MyCell.self, dividerColor: .black, dividerThickness: 1.5)
-            .input(cell: MyPadButton.self)
-            .onInput { row, col, value in
-                print("Entered \(value ?? 0) at (\(row), \(col))")
+    SudokuGameView(model: $model, isNotesMode: $isNotesMode)
+        .grid(spacing: 2, cell: MyCell.self, dividerColor: .black, dividerThickness: 1.5)
+        .input(cell: MyPadButton.self)
+        .accessoryView {
+            HStack {
+                Button("Reset") { model.reset() }
+                Spacer()
+                Toggle("Notes", isOn: $isNotesMode)
             }
-            .onCompletion { isCorrect in
-                showAlert = true
-                alertMessage = isCorrect ? "Well done!" : "Not quite right."
-            }
-    }
+            .padding(.horizontal)
+        }
+        .onInput { row, col, value in
+            print("Entered \(value ?? 0) at (\(row), \(col))")
+        }
+        .onCompletion { isCorrect in
+            showAlert = true
+            alertMessage = isCorrect ? "Well done!" : "Not quite right."
+        }
 }
 ```
