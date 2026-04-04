@@ -7,6 +7,7 @@ import SwiftUI
 ///
 /// ```swift
 /// WordWheelView(model: model)
+///     .inputView(MyInputView.self)
 ///     .letterCell(cell: MyTile.self)
 ///     .actionButton(cell: MyButton.self)
 ///     .solutionCell(cell: MySolutionCell.self)
@@ -46,6 +47,19 @@ public struct WordWheelView: View {
         AnyView(WordWheelActionButton(label: label, onTap: onTap))
     }
 
+    private var inputViewFactory: (_ word: String, _ isValid: Bool, _ letterCount: Int) -> AnyView =
+    { word, isValid, _ in
+        AnyView(
+            Text(word.isEmpty ? " " : word)
+                .font(.title.bold())
+                .kerning(4)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+        )
+    }
+
     private var solutionCellFactory: (_ word: String) -> AnyView
 
     // MARK: - Callbacks
@@ -81,12 +95,17 @@ public struct WordWheelView: View {
         wordPositions.contains(pos)
     }
 
+    private var isCurrentWordValid: Bool {
+        let w = currentWord.lowercased()
+        return !w.isEmpty && model.acceptableAnswers.contains(w) && !foundWords.contains(w)
+    }
+
     // MARK: - Body
 
     public var body: some View {
         VStack(spacing: 24) {
             // Current word display
-            currentWordDisplay
+            inputViewFactory(currentWord, isCurrentWordValid, model.letters.count + 1)
 
             // The wheel
             wheelView
@@ -101,16 +120,6 @@ public struct WordWheelView: View {
     }
 
     // MARK: - Subviews
-
-    private var currentWordDisplay: some View {
-        Text(currentWord.isEmpty ? " " : currentWord)
-            .font(.title.bold())
-            .kerning(4)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
 
     private var wheelView: some View {
         GeometryReader { geo in
@@ -210,6 +219,15 @@ public struct WordWheelView: View {
     }
 
     // MARK: - Modifiers
+
+    /// Replace the default input display with a custom view conforming to `WordWheelInputViewProtocol`.
+    public func inputView<T: WordWheelInputViewProtocol>(cell: T.Type) -> Self {
+        var copy = self
+        copy.inputViewFactory = { word, isValid, letterCount in
+            AnyView(T(word: word, isValid: isValid, letterCount: letterCount))
+        }
+        return copy
+    }
 
     /// Replace the default letter tile with a custom view conforming to `WordWheelLetterCellProtocol`.
     public func letterCell<T: WordWheelLetterCellProtocol>(cell: T.Type) -> Self {

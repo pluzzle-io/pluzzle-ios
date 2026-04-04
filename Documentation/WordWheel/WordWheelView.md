@@ -47,6 +47,72 @@ var body: some View {
 
 ---
 
+## Customising the Input Display — `.inputView(cell:)`
+
+The word-in-progress banner at the top of the view is fully replaceable. Use the `.inputView` modifier to supply a custom type:
+
+```swift
+WordWheelView(model: model)
+    .inputView(MyInputView.self)
+```
+
+### Adopting `WordWheelInputViewProtocol`
+
+Your custom view must conform to `WordWheelInputViewProtocol`:
+
+```swift
+public protocol WordWheelInputViewProtocol: View {
+    init(word: String, isValid: Bool, letterCount: Int)
+}
+```
+
+| Parameter | Type | Description |
+|---|---|---|
+| `word` | `String` | The word currently being built (uppercased). Empty string when no letters are selected. |
+| `isValid` | `Bool` | `true` when the current word is in `acceptableAnswers` and has not yet been found. Recomputed live on every letter tap. |
+| `letterCount` | `Int` | Total number of letters on the wheel — surrounding letters plus the main letter. |
+
+**Example custom input view:**
+
+```swift
+struct MyInputView: View, WordWheelInputViewProtocol {
+    var word: String
+    var isValid: Bool
+    var letterCount: Int
+
+    init(word: String, isValid: Bool, letterCount: Int) {
+        self.word = word
+        self.isValid = isValid
+        self.letterCount = letterCount
+    }
+
+    var body: some View {
+        HStack {
+            Text(word.isEmpty ? "Start typing…" : word)
+                .font(.title2.bold())
+                .foregroundStyle(isValid ? Color.green : Color.primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text("\(word.count) / \(letterCount)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+```
+
+Then pass it to the modifier:
+
+```swift
+WordWheelView(model: model)
+    .inputView(MyInputView.self)
+```
+
+---
+
 ## Customising Letter Tiles — `.letterCell(cell:)`
 
 By default, `WordWheelView` renders each wheel tile using its built-in `WordWheelLetterCell`. Replace it with any custom view using the `.letterCell` modifier:
@@ -265,6 +331,7 @@ WordWheelView(model: model)
 
 ```swift
 WordWheelView(model: model)
+    .inputView(MyInputView.self)
     .letterCell(cell: MyCustomTile.self)
     .actionButton(cell: MyCustomButton.self)
     .solutionCell(cell: MyCustomSolutionCell.self)
