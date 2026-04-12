@@ -10,9 +10,7 @@ import SwiftUI
 ///     .inputView(MyInputView.self)
 ///     .input(cell: MyTile.self)
 ///     .actionButton(cell: MyButton.self)
-///     .output(cell: MySolutionCell.self)
-///     .onWordSubmitted { word, isValid in print(isValid ? "✓" : "✗") }
-///     .onCompletion { showAlert = true }
+///     .onWordSubmitted { word in print(word) }
 /// ```
 ///
 /// ### Interactions
@@ -20,9 +18,6 @@ import SwiftUI
 /// - The centre main letter tile is always available.
 /// - Tap **Submit** to validate the current word, **Delete** to remove the last letter,
 ///   or **Clear** to reset the attempt.
-///
-/// ### Completion
-/// ``onCompletion()`` fires once every word in `acceptableAnswers` has been found.
 public struct WordWheelView: View {
     private let model: WordWheelModel
 
@@ -35,9 +30,6 @@ public struct WordWheelView: View {
     /// Ordered list of wheel positions selected for the current word attempt.
     /// `-1` represents the main/centre letter; values `0...n` are indices into `model.letters`.
     @State private var wordPositions: [Int] = []
-
-    /// Words successfully found so far. Pre-seeded from `model.currentAnswers` on init.
-    @State private var foundWords: [String] = []
 
     // MARK: - Factories (default implementations)
 
@@ -64,26 +56,20 @@ public struct WordWheelView: View {
         )
     }
 
-    private var outputFactory: (_ word: String) -> AnyView
-
     // MARK: - Callbacks
 
-    private var onWordSubmittedCallback: ((_ word: String, _ isValid: Bool) -> Void)? = nil
-    private var onCompletionCallback: (() -> Void)? = nil
+    private var onWordSubmittedCallback: ((_ word: String) -> Void)? = nil
 
     // MARK: - Init
 
     /// Creates a new Word Wheel view with the given model.
     ///
-    /// Apply `.input(cell:)`, `.actionButton(cell:)`, `.output(cell:)`,
-    /// `.onWordSubmitted(_:)`, and `.onCompletion(_:)` modifiers before inserting
-    /// the view into the hierarchy.
+    /// Apply `.input(cell:)`, `.actionButton(cell:)`, and `.onWordSubmitted(_:)` modifiers
+    /// before inserting the view into the hierarchy.
     ///
-    /// - Parameter model: The ``WordWheelModel`` defining the puzzle letters and acceptable answers.
+    /// - Parameter model: The ``WordWheelModel`` defining the puzzle letters.
     public init(model: WordWheelModel) {
         self.model = model
-        self._foundWords = State(initialValue: model.currentAnswers.map { $0.lowercased() })
-        self.outputFactory = { word in AnyView(WordWheelSolutionCell(word: word)) }
     }
 
     // MARK: - Derived
@@ -99,26 +85,18 @@ public struct WordWheelView: View {
         wordPositions.contains(pos)
     }
 
-    private var isCurrentWordValid: Bool {
-        let w = currentWord.lowercased()
-        return !w.isEmpty && model.acceptableAnswers.contains(w) && !foundWords.contains(w)
-    }
-
     // MARK: - Body
 
     public var body: some View {
         VStack(spacing: 24) {
             // Current word display
-            inputViewFactory(currentWord, isCurrentWordValid, model.letters.count + 1)
+            inputViewFactory(currentWord, false, model.letters.count + 1)
 
             // The wheel
             wheelView
 
             // Action buttons: Delete / Submit / Clear
             actionRow
-
-            // Found words
-            foundWordsDisplay
         }
         .padding()
     }
@@ -170,23 +148,6 @@ public struct WordWheelView: View {
         }
     }
 
-    private var foundWordsDisplay: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Found: \(foundWords.count) / \(model.acceptableAnswers.count)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 8) {
-                    ForEach(foundWords.sorted(), id: \.self) { word in
-                        outputFactory(word)
-                    }
-                }
-            }
-            .frame(maxHeight: 140)
-        }
-    }
-
     // MARK: - Word Building
 
     private func selectPosition(_ pos: Int) {
@@ -208,17 +169,7 @@ public struct WordWheelView: View {
     private func submitWord() {
         let word = currentWord.lowercased()
         guard !word.isEmpty else { return }
-
-        let isValid = model.acceptableAnswers.contains(word) && !foundWords.contains(word)
-        onWordSubmittedCallback?(word, isValid)
-
-        if isValid {
-            foundWords.append(word)
-            if foundWords.count == model.acceptableAnswers.count {
-                onCompletionCallback?()
-            }
-        }
-
+        onWordSubmittedCallback?(word)
         clearWord()
     }
 
@@ -252,28 +203,12 @@ public struct WordWheelView: View {
         return copy
     }
 
-    /// Replace the default solution cell with a custom view conforming to `WordWheelSolutionCellProtocol`.
-    public func output<T: WordWheelSolutionCellProtocol>(cell: T.Type) -> Self {
-        var copy = self
-        copy.outputFactory = { word in
-            AnyView(T(word: word))
-        }
-        return copy
-    }
-
-    /// Called each time the player submits a word.
-    /// - Parameters:
-    ///   - handler: Receives the submitted word and whether it was a valid, new answer.
-    public func onWordSubmitted(_ handler: @escaping (_ word: String, _ isValid: Bool) -> Void) -> Self {
+    /// Called each time the player taps Submit.
+    /// - Parameter handler: Receives the submitted word (lowercased). Validation and
+    ///   found-word tracking are the caller's responsibility.
+    public func onWordSubmitted(_ handler: @escaping (_ word: String) -> Void) -> Self {
         var copy = self
         copy.onWordSubmittedCallback = handler
-        return copy
-    }
-
-    /// Called when the player has found every acceptable answer.
-    public func onCompletion(_ handler: @escaping () -> Void) -> Self {
-        var copy = self
-        copy.onCompletionCallback = handler
         return copy
     }
 
