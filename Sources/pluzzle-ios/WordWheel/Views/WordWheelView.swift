@@ -8,9 +8,9 @@ import SwiftUI
 /// ```swift
 /// WordWheelView(model: model)
 ///     .inputView(MyInputView.self)
-///     .letterCell(cell: MyTile.self)
+///     .input(cell: MyTile.self)
 ///     .actionButton(cell: MyButton.self)
-///     .solutionCell(cell: MySolutionCell.self)
+///     .output(cell: MySolutionCell.self)
 ///     .onWordSubmitted { word, isValid in print(isValid ? "✓" : "✗") }
 ///     .onCompletion { showAlert = true }
 /// ```
@@ -26,6 +26,10 @@ import SwiftUI
 public struct WordWheelView: View {
     private let model: WordWheelModel
 
+    // MARK: - Layout configuration
+
+    private var gridRadius: CGFloat? = nil
+
     // MARK: - State
 
     /// Ordered list of wheel positions selected for the current word attempt.
@@ -37,7 +41,7 @@ public struct WordWheelView: View {
 
     // MARK: - Factories (default implementations)
 
-    private var letterCellFactory: (_ letter: String, _ isMain: Bool, _ isUsed: Bool, _ onTap: @escaping () -> Void) -> AnyView =
+    private var inputFactory: (_ letter: String, _ isMain: Bool, _ isUsed: Bool, _ onTap: @escaping () -> Void) -> AnyView =
     { letter, isMain, isUsed, onTap in
         AnyView(WordWheelLetterCell(letter: letter, isMain: isMain, isUsed: isUsed, onTap: onTap))
     }
@@ -60,7 +64,7 @@ public struct WordWheelView: View {
         )
     }
 
-    private var solutionCellFactory: (_ word: String) -> AnyView
+    private var outputFactory: (_ word: String) -> AnyView
 
     // MARK: - Callbacks
 
@@ -71,7 +75,7 @@ public struct WordWheelView: View {
 
     /// Creates a new Word Wheel view with the given model.
     ///
-    /// Apply `.letterCell(cell:)`, `.actionButton(cell:)`, `.solutionCell(cell:)`,
+    /// Apply `.input(cell:)`, `.actionButton(cell:)`, `.output(cell:)`,
     /// `.onWordSubmitted(_:)`, and `.onCompletion(_:)` modifiers before inserting
     /// the view into the hierarchy.
     ///
@@ -79,7 +83,7 @@ public struct WordWheelView: View {
     public init(model: WordWheelModel) {
         self.model = model
         self._foundWords = State(initialValue: model.currentAnswers.map { $0.lowercased() })
-        self.solutionCellFactory = { word in AnyView(WordWheelSolutionCell(word: word)) }
+        self.outputFactory = { word in AnyView(WordWheelSolutionCell(word: word)) }
     }
 
     // MARK: - Derived
@@ -125,7 +129,7 @@ public struct WordWheelView: View {
         GeometryReader { geo in
             let size = min(geo.size.width, geo.size.height)
             let cellSize = size * 0.18
-            let radius = size * 0.36
+            let radius = gridRadius ?? (size * 0.36)
             let center = CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
 
             ZStack {
@@ -147,13 +151,13 @@ public struct WordWheelView: View {
         let angle = (2 * .pi / Double(model.letters.count)) * Double(index) - (.pi / 2)
         let x = center.x + cos(angle) * radius
         let y = center.y + sin(angle) * radius
-        return letterCellFactory(letter, false, isPositionUsed(index)) { selectPosition(index) }
+        return inputFactory(letter, false, isPositionUsed(index)) { selectPosition(index) }
             .frame(width: cellSize, height: cellSize)
             .position(x: x, y: y)
     }
 
     private func mainLetterTile(cellSize: CGFloat, center: CGPoint) -> some View {
-        letterCellFactory(model.mainLetter, true, isPositionUsed(-1)) { selectPosition(-1) }
+        inputFactory(model.mainLetter, true, isPositionUsed(-1)) { selectPosition(-1) }
             .frame(width: cellSize * 1.2, height: cellSize * 1.2)
             .position(x: center.x, y: center.y)
     }
@@ -175,7 +179,7 @@ public struct WordWheelView: View {
             ScrollView {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 8) {
                     ForEach(foundWords.sorted(), id: \.self) { word in
-                        solutionCellFactory(word)
+                        outputFactory(word)
                     }
                 }
             }
@@ -230,9 +234,9 @@ public struct WordWheelView: View {
     }
 
     /// Replace the default letter tile with a custom view conforming to `WordWheelLetterCellProtocol`.
-    public func letterCell<T: WordWheelLetterCellProtocol>(cell: T.Type) -> Self {
+    public func input<T: WordWheelLetterCellProtocol>(cell: T.Type) -> Self {
         var copy = self
-        copy.letterCellFactory = { letter, isMain, isUsed, onTap in
+        copy.inputFactory = { letter, isMain, isUsed, onTap in
             AnyView(T(letter: letter, isMain: isMain, isUsed: isUsed, onTap: onTap))
         }
         return copy
@@ -249,9 +253,9 @@ public struct WordWheelView: View {
     }
 
     /// Replace the default solution cell with a custom view conforming to `WordWheelSolutionCellProtocol`.
-    public func solutionCell<T: WordWheelSolutionCellProtocol>(cell: T.Type) -> Self {
+    public func output<T: WordWheelSolutionCellProtocol>(cell: T.Type) -> Self {
         var copy = self
-        copy.solutionCellFactory = { word in
+        copy.outputFactory = { word in
             AnyView(T(word: word))
         }
         return copy
@@ -270,6 +274,25 @@ public struct WordWheelView: View {
     public func onCompletion(_ handler: @escaping () -> Void) -> Self {
         var copy = self
         copy.onCompletionCallback = handler
+        return copy
+    }
+
+    /// Sets the distance from the centre letter to each surrounding letter tile.
+    ///
+    /// When not set the radius scales automatically with the available space (36 % of the
+    /// smaller layout dimension). Supply an explicit value to fix the spacing regardless of
+    /// how much space the wheel is given.
+    ///
+    /// ```swift
+    /// WordWheelView(model: model)
+    ///     .grid(radius: 120)
+    /// ```
+    ///
+    /// - Parameter radius: Distance in points from the centre of the wheel to the centre of
+    ///   each surrounding tile.
+    public func grid(radius: CGFloat) -> Self {
+        var copy = self
+        copy.gridRadius = radius
         return copy
     }
 }

@@ -3,7 +3,7 @@ import SwiftUI
 /// A view that represents a single letter tile on the word wheel.
 ///
 /// Conform to this protocol to supply a custom letter tile to ``WordWheelView``
-/// via the `.letterCell(cell:)` modifier.
+/// via the `.input(cell:)` modifier.
 ///
 /// ```swift
 /// struct MyTile: WordWheelLetterCellProtocol {
@@ -21,7 +21,7 @@ import SwiftUI
 /// }
 ///
 /// WordWheelView(model: model)
-///     .letterCell(cell: MyTile.self)
+///     .input(cell: MyTile.self)
 /// ```
 public protocol WordWheelLetterCellProtocol: View {
     /// Creates a letter tile for the given letter and interaction state.
