@@ -53,6 +53,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     private var gridSpacing: CGFloat = 2.0
     private var dividerColor: Color = .black
     private var dividerThickness: CGFloat = 1.5
+    private var gridCornerRadius: CGFloat = 0
 
     // MARK: - State
 
@@ -64,6 +65,9 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     @Binding var model: Model
     @Binding var isNotesMode: Bool
 
+    /// When `true`, only the Sudoku grid is rendered — the accessory view and input pad are hidden.
+    private var gridOnly: Bool = false
+
     // MARK: - Init
 
     /// Creates a new Sudoku game view.
@@ -74,9 +78,12 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     ///   - isNotesMode: A binding to a `Bool` that controls whether the view is in notes
     ///     (pencil-mark) mode. Defaults to `.constant(false)` — pass a real binding when you
     ///     want to drive an external toggle button or toolbar item.
-    public init(model: Binding<Model>, isNotesMode: Binding<Bool> = .constant(false)) {
+    ///   - gridOnly: When `true`, only the Sudoku grid is rendered — the accessory view and
+    ///     input pad are hidden. Defaults to `false` so existing call sites require no changes.
+    public init(model: Binding<Model>, isNotesMode: Binding<Bool> = .constant(false), gridOnly: Bool = false) {
         self._model = model
         self._isNotesMode = isNotesMode
+        self.gridOnly = gridOnly
     }
 
     private var n: Int { model.grid.count }
@@ -137,10 +144,13 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .aspectRatio(1, contentMode: .fit)
                 .overlay { gridOverlay }
-                .border(dividerColor, width: dividerThickness * 2)
+                .clipShape(RoundedRectangle(cornerRadius: gridCornerRadius))
+                .overlay { RoundedRectangle(cornerRadius: gridCornerRadius).stroke(dividerColor, lineWidth: dividerThickness * 2) }
                 .layoutPriority(1)
-            if let accessoryViewFactory { accessoryViewFactory() }
-            numberPad
+            if !gridOnly {
+                if let accessoryViewFactory { accessoryViewFactory() }
+                numberPad
+            }
             Spacer(minLength: 0)
         }
         .padding(.horizontal, hPad)
@@ -159,13 +169,16 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
             Color.clear
                 .frame(width: gridSize, height: gridSize)
                 .overlay { gridOverlay }
-                .border(dividerColor, width: dividerThickness * 2)
-            VStack(spacing: 12) {
-                if let accessoryViewFactory { accessoryViewFactory() }
-                numberPad
-                Spacer(minLength: 0)
+                .clipShape(RoundedRectangle(cornerRadius: gridCornerRadius))
+                .overlay { RoundedRectangle(cornerRadius: gridCornerRadius).stroke(dividerColor, lineWidth: dividerThickness * 2) }
+            if !gridOnly {
+                VStack(spacing: 12) {
+                    if let accessoryViewFactory { accessoryViewFactory() }
+                    numberPad
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, maxHeight: gridSize)
             }
-            .frame(maxWidth: .infinity, maxHeight: gridSize)
         }
         .padding(.horizontal, hPad)
         .padding(.vertical, vPad)
@@ -253,9 +266,11 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     /// - Parameters:
     ///   - spacing: Points of space between adjacent cells.
     ///   - cell: A type conforming to ``SudokuCellProtocol`` used to render each grid cell.
-    public func grid<T: SudokuCellProtocol>(spacing: CGFloat, cell: T.Type) -> Self {
+    ///   - cornerRadius: Corner radius applied to the outer edge of the grid and its border. Defaults to `0`.
+    public func grid<T: SudokuCellProtocol>(spacing: CGFloat, cell: T.Type, cornerRadius: CGFloat = 0) -> Self {
         var copy = self
         copy.gridSpacing = spacing
+        copy.gridCornerRadius = cornerRadius
         copy.cellFactory = { isSelected, text, isFixed, notes, index in
             AnyView(T(isSelected: isSelected, text: text, isFixed: isFixed, notes: notes, index: index))
         }
@@ -268,8 +283,9 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     ///   - cell: A type conforming to ``SudokuCellProtocol`` used to render each grid cell.
     ///   - dividerColor: The color used to draw the thick lines separating the 3×3 boxes.
     ///   - dividerThickness: The base stroke width of the box-divider lines.
-    public func grid<T: SudokuCellProtocol>(spacing: CGFloat, cell: T.Type, dividerColor: Color, dividerThickness: CGFloat) -> Self {
-        var copy = self.grid(spacing: spacing, cell: cell)
+    ///   - cornerRadius: Corner radius applied to the outer edge of the grid and its border. Defaults to `0`.
+    public func grid<T: SudokuCellProtocol>(spacing: CGFloat, cell: T.Type, dividerColor: Color, dividerThickness: CGFloat, cornerRadius: CGFloat = 0) -> Self {
+        var copy = self.grid(spacing: spacing, cell: cell, cornerRadius: cornerRadius)
         copy.dividerColor     = dividerColor
         copy.dividerThickness = dividerThickness
         return copy
