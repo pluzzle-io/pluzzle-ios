@@ -211,9 +211,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
                         .contentShape(Rectangle())
                         .onTapGesture {
                             guard !isFixed, !isSelected else { return }
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                selectedIndex = index
-                            }
+                            selectedIndex = index
                         }
                 }
             }
