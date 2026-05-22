@@ -10,13 +10,14 @@ import SwiftUI
 /// @State private var isNotesMode = false
 ///
 /// var body: some View {
-///     SudokuGameView(model: $model, isNotesMode: $isNotesMode)
-///         .grid(spacing: 2, cell: MyCell.self)
+///     SudokuGameView(model: $model, isNotesMode: $isNotesMode, gridOnly: false)
+///         .grid(spacing: 2, cell: MyCell.self, cornerRadius: 8)
 ///         .input(cell: MyPadButton.self)
 ///         .accessoryView {
 ///             Button("Notes") { isNotesMode.toggle() }
 ///         }
 ///         .onInput { row, col, value in print("Entered \(value ?? 0)") }
+///         .onSelect { row, col in print("Selected (\(row), \(col))") }
 ///         .onCompletion { isCorrect in showResult = true }
 /// }
 /// ```
@@ -47,6 +48,39 @@ import SwiftUI
 /// ### Completion
 /// ``onCompletion(_:)`` fires once every cell is filled.
 /// The `Bool` argument is `true` only when all entries in `state` match the solution.
+///
+/// ### Grid-only mode
+/// Pass `gridOnly: true` to the initialiser to render only the Sudoku grid, suppressing the
+/// accessory view and input pad entirely. This is useful for read-only previews, replay screens,
+/// or any context where the parent supplies its own input controls:
+///
+/// ```swift
+/// SudokuGameView(model: $model, isNotesMode: $isNotesMode, gridOnly: true)
+/// ```
+///
+/// `gridOnly` defaults to `false`, preserving the standard full-screen layout.
+///
+/// ### Grid corner radius
+/// Both `.grid()` modifier overloads accept an optional `cornerRadius: CGFloat` parameter
+/// (default `0`) that rounds the outer corners of the grid and its border:
+///
+/// ```swift
+/// .grid(spacing: 2, cell: MyCell.self, cornerRadius: 12)
+/// ```
+///
+/// ### Cell-selection callback
+/// ``onSelect(_:)`` registers a closure that is called whenever the player taps a new
+/// non-fixed cell. Use it to drive external UI — for example, to animate a custom toolbar or
+/// to log analytics events — without having to poll the model:
+///
+/// ```swift
+/// .onSelect { row, col in
+///     highlightedCell = (row, col)
+/// }
+/// ```
+///
+/// The closure receives the zero-based `row` and `col` indices of the newly selected cell.
+/// It is not called when the player taps a fixed (given) cell or re-taps the already-selected cell.
 public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     // MARK: - Configuration
 
@@ -146,7 +180,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
                 .aspectRatio(1, contentMode: .fit)
                 .overlay { gridOverlay }
                 .clipShape(RoundedRectangle(cornerRadius: gridCornerRadius))
-                .overlay { RoundedRectangle(cornerRadius: gridCornerRadius).stroke(dividerColor, lineWidth: dividerThickness * 2) }
+                .overlay { RoundedRectangle(cornerRadius: gridCornerRadius).strokeBorder(dividerColor, lineWidth: dividerThickness * 2) }
                 .layoutPriority(1)
             if !gridOnly {
                 if let accessoryViewFactory { accessoryViewFactory() }
@@ -171,7 +205,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
                 .frame(width: gridSize, height: gridSize)
                 .overlay { gridOverlay }
                 .clipShape(RoundedRectangle(cornerRadius: gridCornerRadius))
-                .overlay { RoundedRectangle(cornerRadius: gridCornerRadius).stroke(dividerColor, lineWidth: dividerThickness * 2) }
+                .overlay { RoundedRectangle(cornerRadius: gridCornerRadius).strokeBorder(dividerColor, lineWidth: dividerThickness * 2) }
             if !gridOnly {
                 VStack(spacing: 12) {
                     if let accessoryViewFactory { accessoryViewFactory() }
