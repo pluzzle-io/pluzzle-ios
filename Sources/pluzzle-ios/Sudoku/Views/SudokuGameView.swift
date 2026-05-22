@@ -210,9 +210,9 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
                         .frame(width: cellSize, height: cellSize)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            guard !isFixed else { return }
+                            guard !isFixed, !isSelected else { return }
                             withAnimation(.easeInOut(duration: 0.15)) {
-                                selectedIndex = isSelected ? nil : index
+                                selectedIndex = index
                             }
                         }
                 }
