@@ -104,6 +104,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     private var accessoryViewFactory: (() -> AnyView)? = nil
 
     // Callbacks
+    private var onSelectCallback: ((_ row: Int, _ col: Int) -> Void)? = nil
     private var onInputCallback: ((_ row: Int, _ col: Int, _ value: Int?) -> Void)? = nil
     private var onCompletionCallback: ((Bool) -> Void)? = nil
 
@@ -212,6 +213,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
                         .onTapGesture {
                             guard !isFixed, !isSelected else { return }
                             selectedIndex = index
+                            onSelectCallback?(row, col)
                         }
                 }
             }
@@ -305,6 +307,14 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     public func accessoryView<V: View>(@ViewBuilder _ content: @escaping () -> V) -> Self {
         var copy = self
         copy.accessoryViewFactory = { AnyView(content()) }
+        return copy
+    }
+
+    /// Registers a handler called each time the player selects a cell.
+    /// - Parameter handler: Receives the zero-based row and column index of the selected cell.
+    public func onSelect(_ handler: @escaping (_ row: Int, _ col: Int) -> Void) -> Self {
+        var copy = self
+        copy.onSelectCallback = handler
         return copy
     }
 
