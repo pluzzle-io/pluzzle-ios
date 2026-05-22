@@ -260,7 +260,6 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
                             .border(dividerColor, width: dividerThickness)
                     }
                 }
-                .border(dividerColor, width: dividerThickness * 1.5)
             }
         }
     }
