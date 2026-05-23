@@ -5,14 +5,18 @@ import SwiftUI
 /// Configure the view with the builder modifiers before it is placed in the view hierarchy:
 ///
 /// ```swift
-/// MinesweeperGameView(model: MinesweeperModel(rows: 9, columns: 9, mineCount: 10))
-///     .grid(spacing: 4, cell: MinesweeperCell.self)
-///     .onInput { coord, score in
-///         print("Revealed (\(coord.row), \(coord.col)) — score: \(score)")
-///     }
-///     .onCompletion { didWin in
-///         print(didWin ? "You cleared the board!" : "Boom!")
-///     }
+/// @State private var model = MinesweeperModel(rows: 9, columns: 9, mineCount: 10)
+///
+/// var body: some View {
+///     MinesweeperGameView(model: $model)
+///         .grid(spacing: 4, cell: MinesweeperCell.self)
+///         .onInput { coord, score in
+///             print("Revealed (\(coord.row), \(coord.col)) — score: \(score)")
+///         }
+///         .onCompletion { didWin in
+///             print(didWin ? "You cleared the board!" : "Boom!")
+///         }
+/// }
 /// ```
 ///
 /// ### Interactions
@@ -29,7 +33,7 @@ public struct MinesweeperGameView: View {
 
     // MARK: - Configuration
 
-    private let model: MinesweeperModel
+    @Binding var model: MinesweeperModel
     private var gridSpacing: CGFloat = 4
 
     private var cellFactory: (_ row: Int, _ col: Int, _ state: MinesweeperCellState) -> AnyView =
@@ -40,29 +44,17 @@ public struct MinesweeperGameView: View {
     private var onInputCallback: ((_ coord: MinesweeperCoord, _ score: Int) -> Void)? = nil
     private var onCompletionCallback: ((_ didWin: Bool) -> Void)? = nil
 
-    // MARK: - State
-
-    @State private var cellStates: [[MinesweeperCellState]]
-    @State private var activeMines: Set<MinesweeperCoord>
-    @State private var score: Int
-    @State private var isGameOver: Bool
-
     // MARK: - Init
 
-    /// Creates a new game view with the given model.
+    /// Creates a new game view with the given model binding.
     ///
     /// Apply `.grid(spacing:cell:)`, `.onInput(_:)`, and `.onCompletion(_:)` modifiers before
     /// inserting the view into the hierarchy.
     ///
-    /// - Parameter model: The ``MinesweeperModel`` that defines the grid dimensions and mine count.
-    public init(model: MinesweeperModel) {
-        self.model = model
-        _cellStates = State(initialValue:
-            Array(repeating: Array(repeating: .hidden, count: model.columns), count: model.rows)
-        )
-        _activeMines = State(initialValue: model.mines)
-        _score = State(initialValue: 0)
-        _isGameOver = State(initialValue: false)
+    /// - Parameter model: A binding to the ``MinesweeperModel`` that defines the grid dimensions,
+    ///   mine count, and live game state. All state changes are written back through this binding.
+    public init(model: Binding<MinesweeperModel>) {
+        self._model = model
     }
 
     // MARK: - Body
@@ -73,7 +65,7 @@ public struct MinesweeperGameView: View {
                 HStack(spacing: gridSpacing) {
                     ForEach(0..<model.columns, id: \.self) { col in
                         let coord = MinesweeperCoord(row: row, col: col)
-                        cellFactory(row, col, cellStates[row][col])
+                        cellFactory(row, col, model.cellStates[row][col])
                             .onTapGesture { handleTap(at: coord) }
                             .onLongPressGesture { handleLongPress(at: coord) }
                     }
@@ -121,16 +113,16 @@ public struct MinesweeperGameView: View {
     // MARK: - Helpers
 
     private func handleTap(at coord: MinesweeperCoord) {
-        guard !isGameOver else { return }
-        guard case .hidden = cellStates[coord.row][coord.col] else { return }
+        guard !model.isGameOver else { return }
+        guard case .hidden = model.cellStates[coord.row][coord.col] else { return }
 
         // Auto-generate mines on first tap, guaranteeing the tapped cell + its neighbors are safe
-        if activeMines.isEmpty && model.mines.isEmpty {
+        if model.activeMines.isEmpty && model.mines.isEmpty {
             let safeZone = Set([coord] + model.neighbors(of: coord))
-            activeMines = model.generateMines(avoiding: safeZone)
+            model.activeMines = model.generateMines(avoiding: safeZone)
         }
 
-        if activeMines.contains(coord) {
+        if model.activeMines.contains(coord) {
             triggerGameOver(explodedAt: coord)
         } else {
             revealCells(from: coord)
@@ -139,10 +131,10 @@ public struct MinesweeperGameView: View {
     }
 
     private func handleLongPress(at coord: MinesweeperCoord) {
-        guard !isGameOver else { return }
-        switch cellStates[coord.row][coord.col] {
-        case .hidden:  cellStates[coord.row][coord.col] = .flagged
-        case .flagged: cellStates[coord.row][coord.col] = .hidden
+        guard !model.isGameOver else { return }
+        switch model.cellStates[coord.row][coord.col] {
+        case .hidden:  model.cellStates[coord.row][coord.col] = .flagged
+        case .flagged: model.cellStates[coord.row][coord.col] = .hidden
         default:       break
         }
     }
@@ -155,18 +147,18 @@ public struct MinesweeperGameView: View {
         while !queue.isEmpty {
             let coord = queue.removeFirst()
             guard !visited.contains(coord) else { continue }
-            guard case .hidden = cellStates[coord.row][coord.col] else { continue }
+            guard case .hidden = model.cellStates[coord.row][coord.col] else { continue }
             visited.insert(coord)
 
-            let adjCount = model.adjacentMineCount(for: coord, in: activeMines)
-            cellStates[coord.row][coord.col] = .revealed(adjacentMines: adjCount)
-            score += 1
-            onInputCallback?(coord, score)
+            let adjCount = model.adjacentMineCount(for: coord, in: model.activeMines)
+            model.cellStates[coord.row][coord.col] = .revealed(adjacentMines: adjCount)
+            model.score += 1
+            onInputCallback?(coord, model.score)
 
             if adjCount == 0 {
                 for neighbor in model.neighbors(of: coord) {
                     guard !visited.contains(neighbor) else { continue }
-                    if case .hidden = cellStates[neighbor.row][neighbor.col] {
+                    if case .hidden = model.cellStates[neighbor.row][neighbor.col] {
                         queue.append(neighbor)
                     }
                 }
@@ -175,20 +167,21 @@ public struct MinesweeperGameView: View {
     }
 
     private func triggerGameOver(explodedAt coord: MinesweeperCoord) {
-        cellStates[coord.row][coord.col] = .exploded
-        for mine in activeMines where mine != coord {
-            if case .hidden = cellStates[mine.row][mine.col] {
-                cellStates[mine.row][mine.col] = .mineRevealed
+        model.cellStates[coord.row][coord.col] = .exploded
+        for mine in model.activeMines where mine != coord {
+            if case .hidden = model.cellStates[mine.row][mine.col] {
+                model.cellStates[mine.row][mine.col] = .mineRevealed
             }
         }
-        isGameOver = true
+        model.isGameOver = true
+        model.didWin = false
         onCompletionCallback?(false)
     }
 
     private func checkWin() {
-        let totalSafe = model.rows * model.columns - activeMines.count
-        guard score >= totalSafe else { return }
-        isGameOver = true
+        guard model.score >= model.totalSafe else { return }
+        model.isGameOver = true
+        model.didWin = true
         onCompletionCallback?(true)
     }
 }

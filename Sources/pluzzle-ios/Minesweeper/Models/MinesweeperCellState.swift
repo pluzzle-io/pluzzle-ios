@@ -1,7 +1,7 @@
 import Foundation
 
 /// The display state of a single cell in a Minesweeper grid.
-public enum MinesweeperCellState: Equatable, Hashable, Sendable {
+public enum MinesweeperCellState: Equatable, Hashable, Sendable, Codable {
     /// The cell has not been revealed or flagged yet.
     case hidden
 
@@ -16,4 +16,46 @@ public enum MinesweeperCellState: Equatable, Hashable, Sendable {
 
     /// A mine that was not tapped, revealed automatically when the game ends.
     case mineRevealed
+
+    // MARK: - Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case type
+        case adjacentMines
+    }
+
+    private enum TypeKey: String, Codable {
+        case hidden, revealed, flagged, exploded, mineRevealed
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decode(TypeKey.self, forKey: .type)
+        switch type {
+        case .hidden:        self = .hidden
+        case .revealed:
+            let adj = try container.decode(Int.self, forKey: .adjacentMines)
+            self = .revealed(adjacentMines: adj)
+        case .flagged:       self = .flagged
+        case .exploded:      self = .exploded
+        case .mineRevealed:  self = .mineRevealed
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .hidden:
+            try container.encode(TypeKey.hidden, forKey: .type)
+        case .revealed(let adj):
+            try container.encode(TypeKey.revealed, forKey: .type)
+            try container.encode(adj, forKey: .adjacentMines)
+        case .flagged:
+            try container.encode(TypeKey.flagged, forKey: .type)
+        case .exploded:
+            try container.encode(TypeKey.exploded, forKey: .type)
+        case .mineRevealed:
+            try container.encode(TypeKey.mineRevealed, forKey: .type)
+        }
+    }
 }

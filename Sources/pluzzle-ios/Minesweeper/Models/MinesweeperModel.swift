@@ -1,7 +1,7 @@
 import Foundation
 
 /// A zero-based row/column coordinate identifying a cell in a ``MinesweeperModel`` grid.
-public struct MinesweeperCoord: Hashable, Equatable, Sendable {
+public struct MinesweeperCoord: Hashable, Equatable, Sendable, Codable {
     /// Zero-based row index (top = 0).
     public let row: Int
     /// Zero-based column index (left = 0).
@@ -34,7 +34,7 @@ public struct MinesweeperCoord: Hashable, Equatable, Sendable {
 /// let model = MinesweeperModel(rows: 9, columns: 9, mineCount: 10, seed: 42)
 /// // model.startingCoord gives a safe, zero-adjacency cell to open from
 /// ```
-public struct MinesweeperModel: Sendable {
+public struct MinesweeperModel: Sendable, Codable {
     /// Number of rows in the grid.
     public let rows: Int
     /// Number of columns in the grid.
@@ -52,6 +52,25 @@ public struct MinesweeperModel: Sendable {
     /// For all other initialisers this is `nil`.
     public let startingCoord: MinesweeperCoord?
 
+    // MARK: - Runtime state
+
+    /// Per-cell display state. Dimensions: `rows × columns`. All cells start as `.hidden`.
+    public var cellStates: [[MinesweeperCellState]]
+    /// The active mine positions for this game session.
+    /// May differ from `mines` when mines were auto-generated on the first tap.
+    public var activeMines: Set<MinesweeperCoord>
+    /// Count of safely revealed cells.
+    public var score: Int
+    /// `true` once the game has ended (win or loss).
+    public var isGameOver: Bool
+    /// `true` = player won, `false` = player lost, `nil` = game still in progress.
+    public var didWin: Bool?
+
+    // MARK: - Computed
+
+    /// Total number of safe (non-mine) cells based on the active mine set.
+    public var totalSafe: Int { rows * columns - activeMines.count }
+
     /// Creates a new model.
     ///
     /// - Parameters:
@@ -65,7 +84,12 @@ public struct MinesweeperModel: Sendable {
         columns: Int,
         mineCount: Int,
         mines: Set<MinesweeperCoord> = [],
-        generationMode: MinesweeperGenerationMode = .random
+        generationMode: MinesweeperGenerationMode = .random,
+        cellStates: [[MinesweeperCellState]]? = nil,
+        activeMines: Set<MinesweeperCoord>? = nil,
+        score: Int = 0,
+        isGameOver: Bool = false,
+        didWin: Bool? = nil
     ) {
         self.rows = rows
         self.columns = columns
@@ -73,6 +97,14 @@ public struct MinesweeperModel: Sendable {
         self.mines = mines
         self.generationMode = generationMode
         self.startingCoord = nil
+        self.cellStates = cellStates ?? Array(
+            repeating: Array(repeating: .hidden, count: columns),
+            count: rows
+        )
+        self.activeMines = activeMines ?? mines
+        self.score = score
+        self.isGameOver = isGameOver
+        self.didWin = didWin
     }
 
     /// Creates a fully deterministic model from an integer seed.
@@ -100,7 +132,17 @@ public struct MinesweeperModel: Sendable {
     ///   - columns: Number of columns.
     ///   - mineCount: How many mines to place.
     ///   - seed: An integer seed. The same value always produces the same mine layout and starting cell.
-    public init(rows: Int, columns: Int, mineCount: Int, seed: Int) {
+    public init(
+        rows: Int,
+        columns: Int,
+        mineCount: Int,
+        seed: Int,
+        cellStates: [[MinesweeperCellState]]? = nil,
+        activeMines: Set<MinesweeperCoord>? = nil,
+        score: Int = 0,
+        isGameOver: Bool = false,
+        didWin: Bool? = nil
+    ) {
         self.rows = rows
         self.columns = columns
         self.mineCount = mineCount
@@ -149,6 +191,30 @@ public struct MinesweeperModel: Sendable {
             // Degenerate: every cell is mined
             self.startingCoord = nil
         }
+        self.cellStates = cellStates ?? Array(
+            repeating: Array(repeating: .hidden, count: columns),
+            count: rows
+        )
+        self.activeMines = activeMines ?? placedMines
+        self.score = score
+        self.isGameOver = isGameOver
+        self.didWin = didWin
+    }
+
+    /// Resets the game state to its initial values, ready for a new game.
+    ///
+    /// - Clears all cell states back to `.hidden`.
+    /// - Restores `activeMines` to the pre-placed `mines` set (auto-generated sets are discarded).
+    /// - Zeroes `score`, `isGameOver`, and `didWin`.
+    public mutating func reset() {
+        cellStates = Array(
+            repeating: Array(repeating: .hidden, count: columns),
+            count: rows
+        )
+        activeMines = mines
+        score = 0
+        isGameOver = false
+        didWin = nil
     }
 
     /// Returns all valid 8-directional neighbors of `coord` that lie within the grid bounds.

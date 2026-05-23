@@ -1,7 +1,10 @@
 import SwiftUI
 
 #Preview("Random") {
-    MinesweeperGameView(model: MinesweeperModel(rows: 9, columns: 9, mineCount: 10, generationMode: .random))
+    @Previewable @State var model = MinesweeperModel(
+        rows: 9, columns: 9, mineCount: 10, generationMode: .random
+    )
+    MinesweeperGameView(model: $model)
         .grid(spacing: 4, cell: MinesweeperCell.self)
         .onInput { coord, score in
             print("Revealed (\(coord.row), \(coord.col)) — score: \(score)")
@@ -14,7 +17,10 @@ import SwiftUI
 }
 
 #Preview("Seeded — today") {
-    MinesweeperGameView(model: MinesweeperModel(rows: 9, columns: 9, mineCount: 10, generationMode: .seeded(.now)))
+    @Previewable @State var model = MinesweeperModel(
+        rows: 9, columns: 9, mineCount: 10, generationMode: .seeded(.now)
+    )
+    MinesweeperGameView(model: $model)
         .grid(spacing: 4, cell: MinesweeperCell.self)
         .onInput { coord, score in
             print("Revealed (\(coord.row), \(coord.col)) — score: \(score)")

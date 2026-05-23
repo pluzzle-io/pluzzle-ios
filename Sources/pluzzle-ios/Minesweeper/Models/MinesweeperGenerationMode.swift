@@ -1,7 +1,7 @@
 import Foundation
 
 /// Controls how mines are placed when a ``MinesweeperModel`` auto-generates on the first tap.
-public enum MinesweeperGenerationMode: Sendable {
+public enum MinesweeperGenerationMode: Sendable, Codable {
     /// Places mines using a random source each time. No two games are alike.
     case random
 
