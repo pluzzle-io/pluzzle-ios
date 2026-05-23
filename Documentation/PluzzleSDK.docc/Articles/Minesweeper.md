@@ -34,8 +34,12 @@ public struct MinesweeperModel {
     public let columns: Int
     public let mineCount: Int
     public let mines: Set<MinesweeperCoord>
+    public let generationMode: MinesweeperGenerationMode
+    public let startingCoord: MinesweeperCoord?
 
-    public init(rows: Int, columns: Int, mineCount: Int, mines: Set<MinesweeperCoord> = [])
+    public init(rows: Int, columns: Int, mineCount: Int, mines: Set<MinesweeperCoord> = [],
+                generationMode: MinesweeperGenerationMode = .random)
+    public init(rows: Int, columns: Int, mineCount: Int, seed: Int)
 }
 ```
 
@@ -45,6 +49,8 @@ public struct MinesweeperModel {
 | `columns` | Number of columns in the grid. |
 | `mineCount` | Mines to generate on first tap. Ignored when `mines` is non-empty. |
 | `mines` | Optional pre-placed mine coordinates for reproducible puzzles. |
+| `generationMode` | How mines are placed when auto-generating: `.random` or `.seeded(Date)`. |
+| `startingCoord` | A recommended mine-free opening cell. Set only by `init(rows:columns:mineCount:seed:)`. `nil` for all other initialisers. |
 
 ### Preset difficulty levels
 
@@ -70,6 +76,20 @@ let model = MinesweeperModel(
         MinesweeperCoord(row: 4, col: 4),
     ]
 )
+```
+
+### Seeded boards
+
+Pass an integer seed to produce a fully deterministic board — the same seed always generates the same mine layout and starting cell. Useful for shareable puzzles, daily challenges, or reproducible test scenarios.
+
+```swift
+let model = MinesweeperModel(rows: 9, columns: 9, mineCount: 10, seed: 42)
+
+// model.startingCoord is a mine-free cell, preferring one with zero adjacent mines
+// so the view flood-fills immediately on first reveal.
+if let start = model.startingCoord {
+    // pre-reveal or highlight that cell in your UI
+}
 ```
 
 ### MinesweeperCoord

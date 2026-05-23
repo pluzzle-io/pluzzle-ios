@@ -29,6 +29,10 @@ public struct MinesweeperCoord: Hashable, Equatable, Sendable {
 ///     MinesweeperCoord(row: 3, col: 1),
 ///     MinesweeperCoord(row: 4, col: 4),
 /// ])
+///
+/// // Fully deterministic board from an integer seed
+/// let model = MinesweeperModel(rows: 9, columns: 9, mineCount: 10, seed: 42)
+/// // model.startingCoord gives a safe, zero-adjacency cell to open from
 /// ```
 public struct MinesweeperModel: Sendable {
     /// Number of rows in the grid.
@@ -41,6 +45,12 @@ public struct MinesweeperModel: Sendable {
     public let mines: Set<MinesweeperCoord>
     /// How mines are placed when auto-generating. Defaults to ``MinesweeperGenerationMode/random``.
     public let generationMode: MinesweeperGenerationMode
+    /// A recommended starting cell derived from the seed initialiser.
+    ///
+    /// When a model is created with ``init(rows:columns:mineCount:seed:)`` this is a mine-free cell,
+    /// preferring one with zero adjacent mines so an opening flood-fill is triggered immediately.
+    /// For all other initialisers this is `nil`.
+    public let startingCoord: MinesweeperCoord?
 
     /// Creates a new model.
     ///
@@ -62,6 +72,83 @@ public struct MinesweeperModel: Sendable {
         self.mineCount = mineCount
         self.mines = mines
         self.generationMode = generationMode
+        self.startingCoord = nil
+    }
+
+    /// Creates a fully deterministic model from an integer seed.
+    ///
+    /// Both the mine layout (solution) and a recommended opening cell (starting point) are derived
+    /// from `seed` using a Xorshift64 pseudo-random number generator, so the same seed always
+    /// produces the same board — useful for shareable puzzles, daily challenges, or reproducible
+    /// testing scenarios.
+    ///
+    /// The ``startingCoord`` property returns the recommended first cell to reveal. It is always
+    /// mine-free and, when possible, has zero adjacent mines so the reveal flood-fills outward
+    /// immediately.
+    ///
+    /// ```swift
+    /// let model = MinesweeperModel(rows: 9, columns: 9, mineCount: 10, seed: 42)
+    ///
+    /// // Use the suggested starting cell in the view
+    /// if let start = model.startingCoord {
+    ///     // e.g. pre-reveal or highlight that cell
+    /// }
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - rows: Number of rows.
+    ///   - columns: Number of columns.
+    ///   - mineCount: How many mines to place.
+    ///   - seed: An integer seed. The same value always produces the same mine layout and starting cell.
+    public init(rows: Int, columns: Int, mineCount: Int, seed: Int) {
+        self.rows = rows
+        self.columns = columns
+        self.mineCount = mineCount
+        self.generationMode = .random  // mines are pre-placed; auto-generation won't fire
+
+        // Build candidate list in a stable row-major order
+        var candidates: [MinesweeperCoord] = []
+        for r in 0..<rows {
+            for c in 0..<columns {
+                candidates.append(MinesweeperCoord(row: r, col: c))
+            }
+        }
+
+        // Shuffle with the seeded RNG to determine mine placement
+        var rng = SeededRNG(seed: UInt64(bitPattern: Int64(seed)))
+        candidates.shuffle(using: &rng)
+        let placedMines = Set(candidates.prefix(min(mineCount, candidates.count)))
+        self.mines = placedMines
+
+        // Determine the starting cell: prefer a non-mine cell with zero adjacent mines,
+        // falling back to any non-mine cell if none has zero adjacency.
+        let tempModel = _MinesweeperGeometry(rows: rows, columns: columns)
+
+        var zeroCells: [MinesweeperCoord] = []
+        var safeCells: [MinesweeperCoord] = []
+
+        for r in 0..<rows {
+            for c in 0..<columns {
+                let coord = MinesweeperCoord(row: r, col: c)
+                guard !placedMines.contains(coord) else { continue }
+                safeCells.append(coord)
+                let adjCount = tempModel.neighbors(of: coord).filter { placedMines.contains($0) }.count
+                if adjCount == 0 { zeroCells.append(coord) }
+            }
+        }
+
+        // Shuffle each candidate pool with the same RNG so the starting cell is also seed-stable
+        zeroCells.shuffle(using: &rng)
+        safeCells.shuffle(using: &rng)
+
+        if let first = zeroCells.first {
+            self.startingCoord = first
+        } else if let first = safeCells.first {
+            self.startingCoord = first
+        } else {
+            // Degenerate: every cell is mined
+            self.startingCoord = nil
+        }
     }
 
     /// Returns all valid 8-directional neighbors of `coord` that lie within the grid bounds.
@@ -146,5 +233,28 @@ private struct SeededRNG: RandomNumberGenerator {
         state ^= state >> 7
         state ^= state << 17
         return state
+    }
+}
+
+// MARK: - _MinesweeperGeometry
+
+/// A lightweight grid-geometry helper used inside `MinesweeperModel.init(seed:)` to compute
+/// neighbor lists before `self` is fully initialised.
+private struct _MinesweeperGeometry {
+    let rows: Int
+    let columns: Int
+
+    func neighbors(of coord: MinesweeperCoord) -> [MinesweeperCoord] {
+        var result: [MinesweeperCoord] = []
+        for dr in -1...1 {
+            for dc in -1...1 {
+                guard dr != 0 || dc != 0 else { continue }
+                let r = coord.row + dr
+                let c = coord.col + dc
+                guard r >= 0, r < rows, c >= 0, c < columns else { continue }
+                result.append(MinesweeperCoord(row: r, col: c))
+            }
+        }
+        return result
     }
 }
