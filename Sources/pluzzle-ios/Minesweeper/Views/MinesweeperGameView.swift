@@ -72,6 +72,56 @@ public struct MinesweeperGameView: View {
                 }
             }
         }
+        .onAppear { autoFirstMove() }
+    }
+
+    // MARK: - Auto first move
+
+    /// Automatically reveals a starting cell when the game has not yet been touched.
+    ///
+    /// - If the model carries a `startingCoord` (seed-based board), that cell is used directly.
+    /// - Otherwise a cell is chosen at random from the centre region of the grid
+    ///   (rows 1..<rows-1, columns 1..<columns-1 when the grid is large enough)
+    ///   so the edges — which statistically have higher mine density — are avoided.
+    ///
+    /// The move is skipped when the model already has progress (any cell revealed,
+    /// a non-zero score, or the game already over) so that restored game-state is never disturbed.
+    private func autoFirstMove() {
+        // Guard: only fire on a pristine, untouched board
+        let allHidden = model.cellStates.allSatisfy { row in
+            row.allSatisfy { if case .hidden = $0 { return true } else { return false } }
+        }
+        guard allHidden, model.score == 0, !model.isGameOver else { return }
+
+        if let coord = model.startingCoord {
+            // Seeded board: mines are already placed; tap straight into BFS reveal.
+            handleTap(at: coord)
+        } else {
+            // Random / date-seeded board: pick a cell from the centre region.
+            let rowRange: Range<Int>
+            let colRange: Range<Int>
+            if model.rows > 2 {
+                rowRange = 1..<(model.rows - 1)
+            } else {
+                rowRange = 0..<model.rows
+            }
+            if model.columns > 2 {
+                colRange = 1..<(model.columns - 1)
+            } else {
+                colRange = 0..<model.columns
+            }
+
+            var candidates: [MinesweeperCoord] = []
+            for r in rowRange {
+                for c in colRange {
+                    candidates.append(MinesweeperCoord(row: r, col: c))
+                }
+            }
+
+            guard let coord = candidates.randomElement() else { return }
+            // handleTap will generate mines avoiding `coord` and its neighbours, then reveal.
+            handleTap(at: coord)
+        }
     }
 
     // MARK: - Modifiers
