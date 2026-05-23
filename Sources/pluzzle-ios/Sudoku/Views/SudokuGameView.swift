@@ -160,7 +160,6 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
                 portraitBody(screen: screen)
             }
         }
-        .allowsHitTesting(false)
         .onChange(of: model.isComplete) { _, isComplete in
             if !isComplete { completionFired = false }
         }
@@ -191,7 +190,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
         }
         .padding(.horizontal, hPad)
         .padding(.vertical, vPad)
-        .frame(width: screen.size.width, height: screen.size.height)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
@@ -218,7 +217,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
         }
         .padding(.horizontal, hPad)
         .padding(.vertical, vPad)
-        .frame(width: screen.size.width, height: screen.size.height)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Shared sub-views
@@ -261,6 +260,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
                             .border(dividerColor, width: dividerThickness)
                     }
                 }
+                .allowsHitTesting(false)
             }
         }
     }
