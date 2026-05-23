@@ -160,6 +160,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
                 portraitBody(screen: screen)
             }
         }
+        .allowsHitTesting(false)
         .onChange(of: model.isComplete) { _, isComplete in
             if !isComplete { completionFired = false }
         }
