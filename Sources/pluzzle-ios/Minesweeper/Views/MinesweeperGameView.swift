@@ -168,7 +168,7 @@ public struct MinesweeperGameView: View {
 
     private func triggerGameOver(explodedAt coord: MinesweeperCoord) {
         model.cellStates[coord.row][coord.col] = .exploded
-        for mine in model.activeMines where mine != coord {
+        for mine in model.activeMines.sorted(by: { ($0.row, $0.col) < ($1.row, $1.col) }) where mine != coord {
             if case .hidden = model.cellStates[mine.row][mine.col] {
                 model.cellStates[mine.row][mine.col] = .mineRevealed
             }
