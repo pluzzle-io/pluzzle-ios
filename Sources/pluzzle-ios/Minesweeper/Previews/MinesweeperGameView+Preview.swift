@@ -16,10 +16,8 @@ import SwiftUI
         .aspectRatio(1, contentMode: .fit)
 }
 
-#Preview("Seeded — today") {
-    @Previewable @State var model = MinesweeperModel(
-        rows: 9, columns: 9, mineCount: 10, generationMode: .seeded(.now)
-    )
+#Preview("Example grid") {
+    @Previewable @State var model = MinesweeperModel.example
     MinesweeperGameView(model: $model)
         .grid(spacing: 4, cell: MinesweeperCell.self)
         .onInput { coord, score in
