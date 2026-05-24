@@ -259,11 +259,13 @@ public struct MinesweeperGameView: View {
         onCompletionCallback?(true)
     }
 
-    /// Called at game end (win or loss). Reveals all mine positions and strips any remaining flags.
+    /// Called at game end (win or loss). Reveals the entire board.
     ///
     /// - Hidden or flagged mines → `.mineRevealed` (`.exploded` cells are left as-is).
-    /// - Flagged safe cells → `.hidden` (incorrect flags are cleared).
+    /// - Flagged safe cells → cleared to `.hidden` first, then revealed in the pass below.
+    /// - Any remaining hidden safe cells → `.revealed(adjacentMines:)`.
     private func revealEndState() {
+        // Pass 1 — reveal all mines.
         for mine in model.activeMines {
             switch model.cellStates[mine.row][mine.col] {
             case .hidden, .flagged:
@@ -272,12 +274,22 @@ public struct MinesweeperGameView: View {
                 break
             }
         }
+        // Pass 2 — clear incorrect flags on safe cells.
         for row in 0..<model.rows {
             for col in 0..<model.columns {
                 guard case .flagged = model.cellStates[row][col] else { continue }
                 if !model.activeMines.contains(MinesweeperCoord(row: row, col: col)) {
                     model.cellStates[row][col] = .hidden
                 }
+            }
+        }
+        // Pass 3 — reveal every remaining hidden safe cell.
+        for row in 0..<model.rows {
+            for col in 0..<model.columns {
+                guard case .hidden = model.cellStates[row][col] else { continue }
+                let coord = MinesweeperCoord(row: row, col: col)
+                let adjCount = model.adjacentMineCount(for: coord, in: model.activeMines)
+                model.cellStates[row][col] = .revealed(adjacentMines: adjCount)
             }
         }
     }
