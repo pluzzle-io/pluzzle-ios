@@ -35,6 +35,7 @@ public struct MinesweeperGameView: View {
 
     @Binding var model: MinesweeperModel
     private var gridSpacing: CGFloat = 4
+    private let revealStepDelay: Double = 0.05
 
     private var cellFactory: (_ row: Int, _ col: Int, _ state: MinesweeperCellState) -> AnyView =
     { row, col, state in
@@ -140,28 +141,50 @@ public struct MinesweeperGameView: View {
     }
 
     /// BFS flood-fill reveal: auto-expands through cells with zero adjacent mines.
+    /// Cells are grouped by BFS distance from `start` and revealed in staggered waves,
+    /// producing a ripple animation outward from the tapped cell.
     private func revealCells(from start: MinesweeperCoord) {
-        var queue: [MinesweeperCoord] = [start]
+        // Pass 1 — collect cells grouped by BFS distance (level), no state mutations yet.
+        var levels: [[(coord: MinesweeperCoord, adjCount: Int)]] = []
         var visited: Set<MinesweeperCoord> = []
+        var frontier: [MinesweeperCoord] = [start]
 
-        while !queue.isEmpty {
-            let coord = queue.removeFirst()
-            guard !visited.contains(coord) else { continue }
-            guard case .hidden = model.cellStates[coord.row][coord.col] else { continue }
-            visited.insert(coord)
+        while !frontier.isEmpty {
+            var levelCells: [(coord: MinesweeperCoord, adjCount: Int)] = []
+            var nextFrontier: [MinesweeperCoord] = []
 
-            let adjCount = model.adjacentMineCount(for: coord, in: model.activeMines)
-            model.cellStates[coord.row][coord.col] = .revealed(adjacentMines: adjCount)
-            model.score += 1
-            onInputCallback?(coord, model.score)
+            for coord in frontier {
+                guard !visited.contains(coord) else { continue }
+                guard case .hidden = model.cellStates[coord.row][coord.col] else { continue }
+                visited.insert(coord)
 
-            if adjCount == 0 {
-                for neighbor in model.neighbors(of: coord) {
-                    guard !visited.contains(neighbor) else { continue }
-                    if case .hidden = model.cellStates[neighbor.row][neighbor.col] {
-                        queue.append(neighbor)
+                let adjCount = model.adjacentMineCount(for: coord, in: model.activeMines)
+                levelCells.append((coord, adjCount))
+
+                if adjCount == 0 {
+                    for neighbor in model.neighbors(of: coord) {
+                        guard !visited.contains(neighbor) else { continue }
+                        if case .hidden = model.cellStates[neighbor.row][neighbor.col] {
+                            nextFrontier.append(neighbor)
+                        }
                     }
                 }
+            }
+
+            if !levelCells.isEmpty { levels.append(levelCells) }
+            frontier = nextFrontier
+        }
+
+        // Pass 2 — apply state updates staggered by distance (50 ms per BFS level).
+        for (i, levelCells) in levels.enumerated() {
+            let isLast = i == levels.count - 1
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * revealStepDelay) {
+                for (coord, adjCount) in levelCells {
+                    model.cellStates[coord.row][coord.col] = .revealed(adjacentMines: adjCount)
+                    model.score += 1
+                    onInputCallback?(coord, model.score)
+                }
+                if isLast { checkWin() }
             }
         }
     }
