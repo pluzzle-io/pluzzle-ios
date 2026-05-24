@@ -6,10 +6,12 @@ import SwiftUI
 ///
 /// ```swift
 /// @State private var model = MinesweeperModel(rows: 9, columns: 9, mineCount: 10)
+/// @State private var flagging = false
 ///
 /// var body: some View {
 ///     MinesweeperGameView(model: $model)
 ///         .grid(spacing: 4, cell: MinesweeperCell.self)
+///         .flaggingMode(flagging)
 ///         .onInput { coord, score in
 ///             print("Revealed (\(coord.row), \(coord.col)) — score: \(score)")
 ///         }
@@ -21,7 +23,15 @@ import SwiftUI
 ///
 /// ### Interactions
 /// - **Tap** a hidden cell to reveal it. If it has zero adjacent mines the reveal flood-fills outward automatically.
+///   Cells revealed by a flood-fill animate in ripple waves radiating outward from the tapped cell.
 /// - **Long-press** a hidden cell to plant a flag; long-press again to remove it. Flagged cells cannot be revealed by tap.
+/// - **Flagging mode** — when ``flaggingMode(_:)`` is enabled, every tap plants or removes a flag instead of
+///   revealing the cell. Long-press continues to work regardless of this setting.
+///
+/// ### Game end
+/// When the game ends (win or loss) all mine positions are automatically revealed as ``MinesweeperCellState/mineRevealed``
+/// and any remaining flags are cleared — flags on mines are replaced with the mine indicator, incorrect flags on
+/// safe cells revert to ``MinesweeperCellState/hidden``.
 ///
 /// ### Scoring
 /// Each safely revealed cell awards one point. The cumulative score is reported through ``onInput(_:)`` after every reveal.
@@ -216,11 +226,7 @@ public struct MinesweeperGameView: View {
 
     private func triggerGameOver(explodedAt coord: MinesweeperCoord) {
         model.cellStates[coord.row][coord.col] = .exploded
-        for mine in model.activeMines.sorted(by: { ($0.row, $0.col) < ($1.row, $1.col) }) where mine != coord {
-            if case .hidden = model.cellStates[mine.row][mine.col] {
-                model.cellStates[mine.row][mine.col] = .mineRevealed
-            }
-        }
+        revealEndState()
         model.isGameOver = true
         model.didWin = false
         onCompletionCallback?(false)
@@ -228,8 +234,32 @@ public struct MinesweeperGameView: View {
 
     private func checkWin() {
         guard model.score >= model.totalSafe else { return }
+        revealEndState()
         model.isGameOver = true
         model.didWin = true
         onCompletionCallback?(true)
+    }
+
+    /// Called at game end (win or loss). Reveals all mine positions and strips any remaining flags.
+    ///
+    /// - Hidden or flagged mines → `.mineRevealed` (`.exploded` cells are left as-is).
+    /// - Flagged safe cells → `.hidden` (incorrect flags are cleared).
+    private func revealEndState() {
+        for mine in model.activeMines {
+            switch model.cellStates[mine.row][mine.col] {
+            case .hidden, .flagged:
+                model.cellStates[mine.row][mine.col] = .mineRevealed
+            default:
+                break
+            }
+        }
+        for row in 0..<model.rows {
+            for col in 0..<model.columns {
+                guard case .flagged = model.cellStates[row][col] else { continue }
+                if !model.activeMines.contains(MinesweeperCoord(row: row, col: col)) {
+                    model.cellStates[row][col] = .hidden
+                }
+            }
+        }
     }
 }
