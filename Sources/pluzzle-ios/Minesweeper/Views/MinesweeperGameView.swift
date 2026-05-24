@@ -36,6 +36,7 @@ public struct MinesweeperGameView: View {
     @Binding var model: MinesweeperModel
     private var gridSpacing: CGFloat = 4
     private let revealStepDelay: Double = 0.05
+    private var isFlagging: Bool = false
 
     private var cellFactory: (_ row: Int, _ col: Int, _ state: MinesweeperCellState) -> AnyView =
     { row, col, state in
@@ -111,10 +112,35 @@ public struct MinesweeperGameView: View {
         return copy
     }
 
+    /// Enables or disables flagging mode.
+    ///
+    /// When `isOn` is `true`, tapping any cell plants or removes a flag instead of revealing it —
+    /// identical to a long-press. Long-press continues to work regardless of this setting.
+    ///
+    /// ```swift
+    /// @State private var flagging = false
+    ///
+    /// MinesweeperGameView(model: $model)
+    ///     .flaggingMode(flagging)
+    /// ```
+    ///
+    /// - Parameter isOn: When `true`, taps act as flags.
+    public func flaggingMode(_ isOn: Bool) -> Self {
+        var copy = self
+        copy.isFlagging = isOn
+        return copy
+    }
+
     // MARK: - Helpers
 
     private func handleTap(at coord: MinesweeperCoord) {
         guard !model.isGameOver else { return }
+
+        if isFlagging {
+            handleLongPress(at: coord)
+            return
+        }
+
         guard case .hidden = model.cellStates[coord.row][coord.col] else { return }
 
         // Auto-generate mines on first tap, guaranteeing the tapped cell + its neighbors are safe
