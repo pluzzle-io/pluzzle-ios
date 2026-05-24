@@ -127,7 +127,6 @@ public struct MinesweeperGameView: View {
             triggerGameOver(explodedAt: coord)
         } else {
             revealCells(from: coord)
-            checkWin()
         }
     }
 
