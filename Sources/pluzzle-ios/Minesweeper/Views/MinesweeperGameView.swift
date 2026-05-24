@@ -190,7 +190,10 @@ public struct MinesweeperGameView: View {
 
             for coord in frontier {
                 guard !visited.contains(coord) else { continue }
-                guard case .hidden = model.cellStates[coord.row][coord.col] else { continue }
+                switch model.cellStates[coord.row][coord.col] {
+                case .hidden, .flagged: break   // reveal regardless — flags are cleared on reveal
+                default: continue
+                }
                 visited.insert(coord)
 
                 let adjCount = model.adjacentMineCount(for: coord, in: model.activeMines)
@@ -199,8 +202,9 @@ public struct MinesweeperGameView: View {
                 if adjCount == 0 {
                     for neighbor in model.neighbors(of: coord) {
                         guard !visited.contains(neighbor) else { continue }
-                        if case .hidden = model.cellStates[neighbor.row][neighbor.col] {
-                            nextFrontier.append(neighbor)
+                        switch model.cellStates[neighbor.row][neighbor.col] {
+                        case .hidden, .flagged: nextFrontier.append(neighbor)
+                        default: break
                         }
                     }
                 }
