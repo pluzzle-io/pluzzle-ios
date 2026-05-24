@@ -245,7 +245,7 @@ public struct MinesweeperGameView: View {
 
     private func triggerGameOver(explodedAt coord: MinesweeperCoord) {
         model.cellStates[coord.row][coord.col] = .exploded
-        revealEndState()
+        revealEndState(revealMines: true)
         model.isGameOver = true
         model.didWin = false
         onCompletionCallback?(false)
@@ -253,25 +253,28 @@ public struct MinesweeperGameView: View {
 
     private func checkWin() {
         guard model.score >= model.totalSafe else { return }
-        revealEndState()
+        revealEndState(revealMines: false)
         model.isGameOver = true
         model.didWin = true
         onCompletionCallback?(true)
     }
 
-    /// Called at game end (win or loss). Reveals the entire board.
+    /// Called at game end. Reveals all safe cells and optionally the mine positions.
     ///
-    /// - Hidden or flagged mines → `.mineRevealed` (`.exploded` cells are left as-is).
-    /// - Flagged safe cells → cleared to `.hidden` first, then revealed in the pass below.
+    /// - Parameter revealMines: When `true` (loss), hidden/flagged mines → `.mineRevealed`.
+    ///   When `false` (win), mines are left in their current state — flags on mines stay as flags.
+    /// - Flagged safe cells are always cleared to `.hidden`, then picked up by the safe-cell pass.
     /// - Any remaining hidden safe cells → `.revealed(adjacentMines:)`.
-    private func revealEndState() {
-        // Pass 1 — reveal all mines.
-        for mine in model.activeMines {
-            switch model.cellStates[mine.row][mine.col] {
-            case .hidden, .flagged:
-                model.cellStates[mine.row][mine.col] = .mineRevealed
-            default:
-                break
+    private func revealEndState(revealMines: Bool) {
+        // Pass 1 — reveal mine positions (loss only).
+        if revealMines {
+            for mine in model.activeMines {
+                switch model.cellStates[mine.row][mine.col] {
+                case .hidden, .flagged:
+                    model.cellStates[mine.row][mine.col] = .mineRevealed
+                default:
+                    break
+                }
             }
         }
         // Pass 2 — clear incorrect flags on safe cells.
