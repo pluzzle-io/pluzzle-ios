@@ -48,6 +48,14 @@ public struct MinesweeperGameView: View {
     private let revealStepDelay: Double = 0.05
     private var isFlagging: Bool = false
 
+    // MARK: - Private state
+
+    /// Incremented whenever a new reveal starts or the view disappears.
+    /// Each `asyncAfter` closure captures the epoch at dispatch time and exits early if it has
+    /// changed by the time it fires — preventing in-flight state mutations from interfering with
+    /// a NavigationStack pop transition.
+    @State private var revealEpoch: Int = 0
+
     private var cellFactory: (_ row: Int, _ col: Int, _ state: MinesweeperCellState) -> AnyView =
     { row, col, state in
         AnyView(MinesweeperCell(row: row, column: col, state: state))
@@ -84,6 +92,7 @@ public struct MinesweeperGameView: View {
                 }
             }
         }
+        .onDisappear { revealEpoch += 1 }
     }
 
     // MARK: - Modifiers
@@ -179,6 +188,9 @@ public struct MinesweeperGameView: View {
     /// Cells are grouped by BFS distance from `start` and revealed in staggered waves,
     /// producing a ripple animation outward from the tapped cell.
     private func revealCells(from start: MinesweeperCoord) {
+        // Cancel any closures still in flight from a previous reveal (e.g. rapid successive taps).
+        revealEpoch += 1
+
         // Pass 1 — collect cells grouped by BFS distance (level), no state mutations yet.
         var levels: [[(coord: MinesweeperCoord, adjCount: Int)]] = []
         var visited: Set<MinesweeperCoord> = []
@@ -215,9 +227,12 @@ public struct MinesweeperGameView: View {
         }
 
         // Pass 2 — apply state updates staggered by distance (50 ms per BFS level).
+        let epoch = revealEpoch
         for (i, levelCells) in levels.enumerated() {
             let isLast = i == levels.count - 1
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * revealStepDelay) {
+                // If the epoch changed (view dismissed or a newer reveal started), discard silently.
+                guard revealEpoch == epoch else { return }
                 for (coord, adjCount) in levelCells {
                     model.cellStates[coord.row][coord.col] = .revealed(adjacentMines: adjCount)
                     model.score += 1
