@@ -104,7 +104,11 @@ public struct TakuzuGameView: View {
             var updated = model
             updated.revealHint()
             model = updated
-            checkCompletion(with: updated)
+        }
+        // Single completion observer — fires after every model.state mutation (tap or hint)
+        // in a SwiftUI side-effect context where the binding reflects the new value.
+        .onChange(of: model.state) { _, _ in
+            checkCompletion(with: model)
         }
     }
 
@@ -181,10 +185,10 @@ public struct TakuzuGameView: View {
 
     /// Cycles a cell through: `nil → true → false → nil → …`
     ///
-    /// Reads the entire model into a local copy, applies the change, then writes the whole model
-    /// back through the binding in one atomic operation.  `checkCompletion(with:)` is then called
-    /// with the local snapshot so it never re-reads through the binding (which may not yet reflect
-    /// a subscript-chain write in the same synchronous call).
+    /// Reads the entire model into a local copy, applies the change, then writes it back as one
+    /// atomic binding assignment.  Completion is detected via `onChange(of: model.state)` rather
+    /// than inline, so it runs in SwiftUI's side-effect context where the new model is guaranteed
+    /// to be fully committed.
     private func handleTap(row: Int, col: Int) {
         var updated = model
         let current = updated.state[row][col]
@@ -197,14 +201,16 @@ public struct TakuzuGameView: View {
         updated.state[row][col] = next
         model = updated
         onCellTapCallback?(row, col, next)
-        checkCompletion(with: updated)
     }
 
     /// Fires ``onGameComplete(_:)`` exactly once when every cell is filled, and resets the
     /// guard whenever a cell is cleared so the callback can fire again if the board is refilled.
     ///
-    /// - Parameter snapshot: The freshly-mutated model value produced in the same call frame,
-    ///   used instead of re-reading through the binding to guarantee up-to-date state.
+    /// Called exclusively from `onChange(of: model.state)` so that `snapshot` is always the
+    /// freshly-committed model value, not a stale synchronous read.
+    ///
+    /// - Parameter snapshot: The current model, read through the binding inside an onChange
+    ///   handler where the new state is fully applied.
     private func checkCompletion(with snapshot: TakuzuModel) {
         if snapshot.isComplete {
             guard !completionFired else { return }
