@@ -60,9 +60,6 @@ public struct TakuzuGameView: View {
     private var onCellTapCallback: ((_ row: Int, _ col: Int, _ newValue: Bool?) -> Void)? = nil
     private var onGameCompleteCallback: ((_ isCorrect: Bool) -> Void)? = nil
 
-    /// Guards completion callback — fires at most once per completed board.
-    @State private var completionFired = false
-
     // MARK: - Init
 
     /// Creates a new Takuzu game view with the given model binding.
@@ -171,7 +168,14 @@ public struct TakuzuGameView: View {
         return copy
     }
 
-    /// Registers a handler that fires once when every cell is filled.
+    /// Registers a handler that fires whenever every cell is filled.
+    ///
+    /// The handler is called each time `model.state` changes and the resulting board is fully
+    /// filled (no empty cells). This includes the initial completion and any subsequent value
+    /// changes that keep the board fully filled — for example, cycling a cell from `true` to
+    /// `false` while the rest of the board is already filled will re-invoke the handler with an
+    /// updated `isCorrect` value. Tapping a cell that clears it to empty suspends callbacks
+    /// until the board is fully filled again.
     ///
     /// - Parameter handler: Receives `true` when the board matches the solution; `false` when
     ///   the board is fully filled but contains at least one error.
@@ -203,21 +207,13 @@ public struct TakuzuGameView: View {
         onCellTapCallback?(row, col, next)
     }
 
-    /// Fires ``onGameComplete(_:)`` exactly once when every cell is filled, and resets the
-    /// guard whenever a cell is cleared so the callback can fire again if the board is refilled.
+    /// Invokes ``onGameComplete(_:)`` whenever the board is fully filled.
     ///
-    /// Called exclusively from `onChange(of: model.state)` so that `snapshot` is always the
-    /// freshly-committed model value, not a stale synchronous read.
-    ///
-    /// - Parameter snapshot: The current model, read through the binding inside an onChange
-    ///   handler where the new state is fully applied.
+    /// Called from `onChange(of: model.state)`, so `snapshot` is the freshly-committed model.
+    /// No de-duplication guard — the handler fires for every state change that leaves the board
+    /// complete, including value changes that keep all cells non-nil.
     private func checkCompletion(with snapshot: TakuzuModel) {
-        if snapshot.isComplete {
-            guard !completionFired else { return }
-            completionFired = true
-            onGameCompleteCallback?(snapshot.isCorrect)
-        } else {
-            completionFired = false
-        }
+        guard snapshot.isComplete else { return }
+        onGameCompleteCallback?(snapshot.isCorrect)
     }
 }
