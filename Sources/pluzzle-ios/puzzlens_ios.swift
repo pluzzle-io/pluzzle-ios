@@ -8,3 +8,4 @@
 /// - ``StreaksGameView`` — continuous-path drawing puzzle across an N×M grid.
 /// - ``SudokuGameView`` — standard 9×9 Sudoku with a built-in number pad.
 /// - ``VoxelGameView`` — 3D Tic-Tac-Toe rendered with SceneKit.
+/// - ``TakuzuGameView`` — binary grid puzzle (a.k.a. Binairo) with balance and no-triples rules.
