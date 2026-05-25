@@ -99,16 +99,10 @@ public struct TakuzuGameView: View {
                 }
             }
         }
-        .onChange(of: model.isComplete) { _, isComplete in
-            if !isComplete { completionFired = false }
-            if isComplete && !completionFired {
-                completionFired = true
-                onGameCompleteCallback?(model.isCorrect)
-            }
-        }
         .onChange(of: hintTrigger?.wrappedValue ?? 0) { oldValue, newValue in
             guard newValue > oldValue else { return }
             model.revealHint()
+            checkCompletion()
         }
     }
 
@@ -194,5 +188,18 @@ public struct TakuzuGameView: View {
         }
         model.state[row][col] = next
         onCellTapCallback?(row, col, next)
+        checkCompletion()
+    }
+
+    /// Fires ``onGameComplete(_:)`` exactly once when every cell is filled, and resets the
+    /// guard whenever a cell is cleared so the callback can fire again if the board is refilled.
+    private func checkCompletion() {
+        if model.isComplete {
+            guard !completionFired else { return }
+            completionFired = true
+            onGameCompleteCallback?(model.isCorrect)
+        } else {
+            completionFired = false
+        }
     }
 }
