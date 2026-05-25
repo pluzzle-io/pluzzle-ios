@@ -29,9 +29,9 @@ import SwiftUI
 ///   revealing the cell. Long-press continues to work regardless of this setting.
 ///
 /// ### Game end
-/// When the game ends (win or loss) all mine positions are automatically revealed as ``MinesweeperCellState/mineRevealed``
-/// and any remaining flags are cleared — flags on mines are replaced with the mine indicator, incorrect flags on
-/// safe cells revert to ``MinesweeperCellState/hidden``.
+/// When the player hits a mine, all mine positions are revealed as ``MinesweeperCellState/mineRevealed``
+/// and any flags on safe cells are cleared to ``MinesweeperCellState/hidden``. Unrevealed safe cells
+/// remain hidden — only the mines are exposed.
 ///
 /// ### Scoring
 /// Each safely revealed cell awards one point. The cumulative score is reported through ``onInput(_:)`` after every reveal.
@@ -259,12 +259,12 @@ public struct MinesweeperGameView: View {
         onCompletionCallback?(true)
     }
 
-    /// Called at game end. Reveals all safe cells and optionally the mine positions.
+    /// Called at game end. Shows mine positions and removes all flags, leaving unrevealed safe
+    /// cells untouched.
     ///
     /// - Parameter revealMines: When `true` (loss), hidden/flagged mines → `.mineRevealed`.
-    ///   When `false` (win), mines are left in their current state — flags on mines stay as flags.
-    /// - Flagged safe cells are always cleared to `.hidden`, then picked up by the safe-cell pass.
-    /// - Any remaining hidden safe cells → `.revealed(adjacentMines:)`.
+    ///   When `false` (win), mines stay in their current state — correct flags on mines remain.
+    /// - Flags on safe cells are always cleared to `.hidden`.
     private func revealEndState(revealMines: Bool) {
         // Pass 1 — reveal mine positions (loss only).
         if revealMines {
@@ -277,22 +277,13 @@ public struct MinesweeperGameView: View {
                 }
             }
         }
-        // Pass 2 — clear incorrect flags on safe cells.
+        // Pass 2 — clear incorrect flags on safe cells back to hidden.
         for row in 0..<model.rows {
             for col in 0..<model.columns {
                 guard case .flagged = model.cellStates[row][col] else { continue }
                 if !model.activeMines.contains(MinesweeperCoord(row: row, col: col)) {
                     model.cellStates[row][col] = .hidden
                 }
-            }
-        }
-        // Pass 3 — reveal every remaining hidden safe cell.
-        for row in 0..<model.rows {
-            for col in 0..<model.columns {
-                guard case .hidden = model.cellStates[row][col] else { continue }
-                let coord = MinesweeperCoord(row: row, col: col)
-                let adjCount = model.adjacentMineCount(for: coord, in: model.activeMines)
-                model.cellStates[row][col] = .revealed(adjacentMines: adjCount)
             }
         }
     }
