@@ -1,20 +1,26 @@
 import SwiftUI
 
-// MARK: - Default cell, default spacing
+// MARK: - Default cell, all modifiers including hint
 
 #Preview("Default — 6×6 example") {
     @Previewable @State var model = TakuzuModel.example
-    TakuzuGameView(model: $model)
-        .grid(spacing: 4, cell: TakuzuCell.self)
-        .showViolations(true)
-        .onCellTap { row, col, value in
-            print("Tapped (\(row),\(col)) → \(value.map { $0 ? "1" : "0" } ?? "empty")")
-        }
-        .onGameComplete { isCorrect in
-            print(isCorrect ? "Solved correctly!" : "Board filled — incorrect.")
-        }
-        .padding()
-        .aspectRatio(1, contentMode: .fit)
+    @Previewable @State var hintCount = 0
+    VStack(spacing: 16) {
+        TakuzuGameView(model: $model)
+            .grid(spacing: 4, cell: TakuzuCell.self)
+            .showViolations(true)
+            .hint(trigger: $hintCount)
+            .onCellTap { row, col, value in
+                print("Tapped (\(row),\(col)) → \(value.map { $0 ? "1" : "0" } ?? "empty")")
+            }
+            .onGameComplete { isCorrect in
+                print(isCorrect ? "Solved correctly!" : "Board filled — incorrect.")
+            }
+            .aspectRatio(1, contentMode: .fit)
+        Button("Hint (tapped \(hintCount)×)") { hintCount += 1 }
+            .buttonStyle(.borderedProminent)
+    }
+    .padding()
 }
 
 // MARK: - Violations disabled

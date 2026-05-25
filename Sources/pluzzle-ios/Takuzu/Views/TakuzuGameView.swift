@@ -7,17 +7,22 @@ import SwiftUI
 ///
 /// ```swift
 /// @State private var model = TakuzuModel.example
+/// @State private var hintCount = 0
 ///
 /// var body: some View {
-///     TakuzuGameView(model: $model)
-///         .grid(spacing: 4, cell: TakuzuCell.self)
-///         .showViolations(true)
-///         .onCellTap { row, col, newValue in
-///             print("Cell (\(row),\(col)) → \(newValue.map { $0 ? "1" : "0" } ?? "cleared")")
-///         }
-///         .onGameComplete { isCorrect in
-///             print(isCorrect ? "Puzzle solved!" : "Board filled but incorrect.")
-///         }
+///     VStack {
+///         TakuzuGameView(model: $model)
+///             .grid(spacing: 4, cell: TakuzuCell.self)
+///             .showViolations(true)
+///             .hint(trigger: $hintCount)
+///             .onCellTap { row, col, newValue in
+///                 print("Cell (\(row),\(col)) → \(newValue.map { $0 ? "1" : "0" } ?? "cleared")")
+///             }
+///             .onGameComplete { isCorrect in
+///                 print(isCorrect ? "Puzzle solved!" : "Board filled but incorrect.")
+///             }
+///         Button("Hint") { hintCount += 1 }
+///     }
 /// }
 /// ```
 ///
@@ -47,6 +52,9 @@ public struct TakuzuGameView: View {
         row, col, value, isFixed, isViolation in
         AnyView(TakuzuCell(row: row, column: col, value: value, isFixed: isFixed, isViolation: isViolation))
     }
+
+    // Hint trigger
+    private var hintTrigger: Binding<Int>? = nil
 
     // Callbacks
     private var onCellTapCallback: ((_ row: Int, _ col: Int, _ newValue: Bool?) -> Void)? = nil
@@ -98,6 +106,10 @@ public struct TakuzuGameView: View {
                 onGameCompleteCallback?(model.isCorrect)
             }
         }
+        .onChange(of: hintTrigger?.wrappedValue ?? 0) { oldValue, newValue in
+            guard newValue > oldValue else { return }
+            model.revealHint()
+        }
     }
 
     // MARK: - Modifiers
@@ -125,6 +137,27 @@ public struct TakuzuGameView: View {
     public func showViolations(_ show: Bool) -> Self {
         var copy = self
         copy.shouldShowViolations = show
+        return copy
+    }
+
+    /// Connects an external hint counter to the view.
+    ///
+    /// Each time the binding's value **increases**, one randomly chosen empty cell is filled with
+    /// its correct solution value. Has no effect when the board is fully filled.
+    ///
+    /// Increment the binding to request a hint:
+    /// ```swift
+    /// Button("Hint") { hintCount += 1 }
+    ///
+    /// TakuzuGameView(model: $model)
+    ///     .hint(trigger: $hintCount)
+    /// ```
+    ///
+    /// - Parameter trigger: A binding to an integer counter owned by the parent. The view reads
+    ///   this value reactively; only increases trigger a reveal.
+    public func hint(trigger: Binding<Int>) -> Self {
+        var copy = self
+        copy.hintTrigger = trigger
         return copy
     }
 

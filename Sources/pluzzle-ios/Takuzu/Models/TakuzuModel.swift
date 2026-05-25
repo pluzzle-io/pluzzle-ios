@@ -179,6 +179,20 @@ public struct TakuzuModel: Sendable {
         cells[row][col] != nil
     }
 
+    /// Fills one randomly chosen empty cell with its correct value from `solution`.
+    ///
+    /// Has no effect when every cell is already filled.
+    public mutating func revealHint() {
+        var empties: [TakuzuCoord] = []
+        for r in 0..<size {
+            for c in 0..<size where state[r][c] == nil {
+                empties.append(TakuzuCoord(row: r, col: c))
+            }
+        }
+        guard let coord = empties.randomElement() else { return }
+        state[coord.row][coord.col] = solution[coord.row][coord.col]
+    }
+
     // MARK: - Example
 
     /// A ready-to-use 6×6 Takuzu puzzle for use in previews and testing.
