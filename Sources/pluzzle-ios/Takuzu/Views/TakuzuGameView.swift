@@ -101,8 +101,10 @@ public struct TakuzuGameView: View {
         }
         .onChange(of: hintTrigger?.wrappedValue ?? 0) { oldValue, newValue in
             guard newValue > oldValue else { return }
-            model.revealHint()
-            checkCompletion()
+            var updated = model
+            updated.revealHint()
+            model = updated
+            checkCompletion(with: updated)
         }
     }
 
@@ -178,26 +180,36 @@ public struct TakuzuGameView: View {
     // MARK: - Helpers
 
     /// Cycles a cell through: `nil → true → false → nil → …`
+    ///
+    /// Reads the entire model into a local copy, applies the change, then writes the whole model
+    /// back through the binding in one atomic operation.  `checkCompletion(with:)` is then called
+    /// with the local snapshot so it never re-reads through the binding (which may not yet reflect
+    /// a subscript-chain write in the same synchronous call).
     private func handleTap(row: Int, col: Int) {
-        let current = model.state[row][col]
+        var updated = model
+        let current = updated.state[row][col]
         let next: Bool?
         switch current {
         case nil:   next = true
         case true:  next = false
         case false: next = nil
         }
-        model.state[row][col] = next
+        updated.state[row][col] = next
+        model = updated
         onCellTapCallback?(row, col, next)
-        checkCompletion()
+        checkCompletion(with: updated)
     }
 
     /// Fires ``onGameComplete(_:)`` exactly once when every cell is filled, and resets the
     /// guard whenever a cell is cleared so the callback can fire again if the board is refilled.
-    private func checkCompletion() {
-        if model.isComplete {
+    ///
+    /// - Parameter snapshot: The freshly-mutated model value produced in the same call frame,
+    ///   used instead of re-reading through the binding to guarantee up-to-date state.
+    private func checkCompletion(with snapshot: TakuzuModel) {
+        if snapshot.isComplete {
             guard !completionFired else { return }
             completionFired = true
-            onGameCompleteCallback?(model.isCorrect)
+            onGameCompleteCallback?(snapshot.isCorrect)
         } else {
             completionFired = false
         }
