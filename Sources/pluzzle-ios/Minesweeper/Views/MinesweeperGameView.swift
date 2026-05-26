@@ -98,12 +98,7 @@ public struct MinesweeperGameView: View {
         }
         .task {
             guard !hasAutoTapped, model.score == 0 else { return }
-            // Use the pre-computed best cell (set when mines are pre-placed), or fall back to
-            // the centre of the grid — the safest default for auto-generated mines because the
-            // first-tap safety zone guarantees the centre and all 8 neighbours are mine-free,
-            // and a central reveal maximises the flood-fill area.
-            let coord = model.startingCoord
-                ?? MinesweeperCoord(row: model.rows / 2, col: model.columns / 2)
+            let coord = bestAutoTapCoord()
             hasAutoTapped = true
             try? await Task.sleep(for: .seconds(0.25))
             handleTap(at: coord)
@@ -167,6 +162,40 @@ public struct MinesweeperGameView: View {
     }
 
     // MARK: - Helpers
+
+    /// Returns the best cell to auto-tap on game load — the non-mine cell with the fewest
+    /// adjacent mines (0 triggers the largest flood-fill reveal).
+    ///
+    /// Priority:
+    /// 1. `model.startingCoord` — pre-computed zero-adjacency cell from `init(grid:)`.
+    /// 2. Scan all non-mine cells in `activeMines` and pick the one with minimum adjacency.
+    /// 3. Centre of the grid — for auto-generated games where mines aren't placed yet;
+    ///    the first-tap safety zone guarantees the centre and its 8 neighbours are mine-free,
+    ///    so adjacency will be 0 after mine generation.
+    private func bestAutoTapCoord() -> MinesweeperCoord {
+        if let coord = model.startingCoord { return coord }
+
+        if !model.activeMines.isEmpty {
+            var best = MinesweeperCoord(row: model.rows / 2, col: model.columns / 2)
+            var bestAdjacency = Int.max
+            outer: for r in 0..<model.rows {
+                for c in 0..<model.columns {
+                    let candidate = MinesweeperCoord(row: r, col: c)
+                    guard !model.activeMines.contains(candidate) else { continue }
+                    let adj = model.adjacentMineCount(for: candidate, in: model.activeMines)
+                    if adj < bestAdjacency {
+                        bestAdjacency = adj
+                        best = candidate
+                        if adj == 0 { break outer } // can't do better than zero
+                    }
+                }
+            }
+            return best
+        }
+
+        // Mines not yet placed — centre maximises flood-fill potential after safe generation.
+        return MinesweeperCoord(row: model.rows / 2, col: model.columns / 2)
+    }
 
     private func handleTap(at coord: MinesweeperCoord) {
         guard !model.isGameOver else { return }
