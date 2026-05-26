@@ -163,51 +163,67 @@ public struct MinesweeperGameView: View {
 
     // MARK: - Helpers
 
-    /// Returns the best interior cell to auto-tap on game load.
+    /// Returns the best cell to auto-tap on game load, maximising the number of cells revealed.
     ///
-    /// Only interior cells (not on any border row or column) are considered — they have all
-    /// 8 neighbours available, so a zero-adjacency reveal flood-fills the largest possible area.
-    /// Edge and corner cells are excluded because they have only 5 or 3 neighbours respectively.
-    ///
-    /// Among eligible cells, the one with the fewest adjacent mines is chosen; ties are broken
-    /// by proximity to the grid centre so the reveal radiates outward symmetrically.
+    /// **Strategy:**
+    /// 1. Scan interior cells first (not on any border row/column) — all 8 neighbours are
+    ///    available, so a zero-adjacency cell here produces the largest possible flood-fill.
+    /// 2. If the best interior result has zero adjacency, return it immediately.
+    /// 3. Otherwise all interior cells would reveal only 1 cell. Widen the search to border
+    ///    and corner cells — a zero-adjacency border cell still reveals multiple cells via
+    ///    flood-fill, which is better than revealing a single interior cell with adjacency > 0.
+    /// 4. Among all candidates, pick the lowest-adjacency cell, breaking ties by Manhattan
+    ///    distance to the grid centre.
     ///
     /// For auto-generated games (mines not yet placed) the centre is returned directly — the
-    /// first-tap safety zone guarantees the centre and all 8 of its neighbours are mine-free,
-    /// so adjacency will be 0 after generation regardless.
+    /// first-tap safety zone guarantees the centre and all 8 neighbours are mine-free.
     private func bestAutoTapCoord() -> MinesweeperCoord {
         let centerRow = model.rows / 2
         let centerCol = model.columns / 2
         let center    = MinesweeperCoord(row: centerRow, col: centerCol)
 
-        guard !model.activeMines.isEmpty else {
-            // Mines not yet placed — centre is always the best starting point.
-            return center
+        guard !model.activeMines.isEmpty else { return center }
+
+        func isBetter(adj: Int, dist: Int, thanAdj bestAdj: Int, dist bestDist: Int) -> Bool {
+            adj < bestAdj || (adj == bestAdj && dist < bestDist)
         }
 
-        var best: MinesweeperCoord = center
-        var bestAdjacency = Int.max
-        var bestDistanceToCenter = Int.max
+        // Pass 1 — interior cells only.
+        var bestCoord = center
+        var bestAdj   = Int.max
+        var bestDist  = Int.max
 
-        // Iterate only over interior cells (excluding all four border rows/columns).
         for r in 1..<(model.rows - 1) {
             for c in 1..<(model.columns - 1) {
                 let candidate = MinesweeperCoord(row: r, col: c)
                 guard !model.activeMines.contains(candidate) else { continue }
-
-                let adj = model.adjacentMineCount(for: candidate, in: model.activeMines)
-                // Manhattan distance to centre — prefer cells closer to centre on ties.
+                let adj  = model.adjacentMineCount(for: candidate, in: model.activeMines)
                 let dist = abs(r - centerRow) + abs(c - centerCol)
-
-                if adj < bestAdjacency || (adj == bestAdjacency && dist < bestDistanceToCenter) {
-                    bestAdjacency = adj
-                    bestDistanceToCenter = dist
-                    best = candidate
+                if isBetter(adj: adj, dist: dist, thanAdj: bestAdj, dist: bestDist) {
+                    bestAdj = adj; bestDist = dist; bestCoord = candidate
                 }
             }
         }
 
-        return best
+        // If an interior zero-adjacency cell was found, nothing beats it.
+        if bestAdj == 0 { return bestCoord }
+
+        // Pass 2 — all interior cells would reveal only 1 cell; widen to borders/corners.
+        for r in 0..<model.rows {
+            for c in 0..<model.columns {
+                let isInterior = r > 0 && r < model.rows - 1 && c > 0 && c < model.columns - 1
+                guard !isInterior else { continue }   // already scanned above
+                let candidate = MinesweeperCoord(row: r, col: c)
+                guard !model.activeMines.contains(candidate) else { continue }
+                let adj  = model.adjacentMineCount(for: candidate, in: model.activeMines)
+                let dist = abs(r - centerRow) + abs(c - centerCol)
+                if isBetter(adj: adj, dist: dist, thanAdj: bestAdj, dist: bestDist) {
+                    bestAdj = adj; bestDist = dist; bestCoord = candidate
+                }
+            }
+        }
+
+        return bestCoord
     }
 
     private func handleTap(at coord: MinesweeperCoord) {
