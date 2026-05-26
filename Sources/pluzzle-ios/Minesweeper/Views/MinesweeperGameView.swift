@@ -97,7 +97,13 @@ public struct MinesweeperGameView: View {
             }
         }
         .task {
-            guard !hasAutoTapped, model.score == 0, let coord = model.startingCoord else { return }
+            guard !hasAutoTapped, model.score == 0 else { return }
+            // Use the pre-computed best cell (set when mines are pre-placed), or fall back to
+            // the centre of the grid — the safest default for auto-generated mines because the
+            // first-tap safety zone guarantees the centre and all 8 neighbours are mine-free,
+            // and a central reveal maximises the flood-fill area.
+            let coord = model.startingCoord
+                ?? MinesweeperCoord(row: model.rows / 2, col: model.columns / 2)
             hasAutoTapped = true
             try? await Task.sleep(for: .seconds(0.25))
             handleTap(at: coord)
