@@ -56,6 +56,10 @@ public struct MinesweeperGameView: View {
     /// a NavigationStack pop transition.
     @State private var revealEpoch: Int = 0
 
+    /// Guards the one-shot auto-tap so it fires only once on first load,
+    /// not on resume or background return.
+    @State private var hasAutoTapped: Bool = false
+
     private var cellFactory: (_ row: Int, _ col: Int, _ state: MinesweeperCellState) -> AnyView =
     { row, col, state in
         AnyView(MinesweeperCell(row: row, column: col, state: state))
@@ -90,6 +94,13 @@ public struct MinesweeperGameView: View {
                             .onLongPressGesture { handleLongPress(at: coord) }
                     }
                 }
+            }
+        }
+        .onAppear {
+            guard !hasAutoTapped, model.score == 0, let coord = model.startingCoord else { return }
+            hasAutoTapped = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                handleTap(at: coord)
             }
         }
         .onDisappear { revealEpoch += 1 }
