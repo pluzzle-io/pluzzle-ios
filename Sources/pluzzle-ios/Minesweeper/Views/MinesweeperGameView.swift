@@ -96,12 +96,11 @@ public struct MinesweeperGameView: View {
                 }
             }
         }
-        .onAppear {
+        .task {
             guard !hasAutoTapped, model.score == 0, let coord = model.startingCoord else { return }
             hasAutoTapped = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                handleTap(at: coord)
-            }
+            try? await Task.sleep(for: .seconds(0.25))
+            handleTap(at: coord)
         }
         .onDisappear { revealEpoch += 1 }
     }
