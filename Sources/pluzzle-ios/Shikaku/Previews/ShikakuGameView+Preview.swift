@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Default cell, all modifiers and callbacks
 
-#Preview("Default — 6×9 example") {
+#Preview("Default — 9×6 example") {
     @Previewable @State var model = ShikakuModel.example
     ShikakuGameView(model: $model)
         .grid(spacing: 2, cell: ShikakuCell.self)
@@ -84,46 +84,46 @@ private struct CustomShikakuCell: ShikakuCellProtocol {
 
 // MARK: - Larger grid
 //
-// 8 rows × 12 cols = 96 cells (3:2 ratio). Verified solution:
-//  col: 0  1  2  3  4  5  6  7  8  9  10 11
-//  r 0: A  A  A  B  B  B  C  C  D  D  D  D
-//  r 1: A  A  A  B  B  B  C  C  D  D  D  D
-//  r 2: A  A  A  E  E  F  F  F  G  G  G  G
-//  r 3: H  H  H  E  E  F  F  F  G  G  G  G
-//  r 4: H  H  H  I  I  I  J  J  J  K  K  K
-//  r 5: H  H  H  I  I  I  J  J  J  K  K  K
-//  r 6: L  L  L  L  M  M  M  N  N  N  O  O
-//  r 7: L  L  L  L  M  M  M  N  N  N  O  O
-//
-//  A=9  rows 0-2 cols 0-2   B=6  rows 0-1 cols 3-5
-//  C=4  rows 0-1 cols 6-7   D=8  rows 0-1 cols 8-11
-//  E=4  rows 2-3 cols 3-4   F=6  rows 2-3 cols 5-7
-//  G=8  rows 2-3 cols 8-11  H=9  rows 3-5 cols 0-2
-//  I=6  rows 4-5 cols 3-5   J=6  rows 4-5 cols 6-8
-//  K=6  rows 4-5 cols 9-11  L=8  rows 6-7 cols 0-3
-//  M=6  rows 6-7 cols 4-6   N=6  rows 6-7 cols 7-9
-//  O=4  rows 6-7 cols 10-11
+// 12 rows × 8 cols = 96 cells (2:3 portrait ratio). Verified solution:
+//  col: 0 1 2 3 4 5 6 7
+//  r 0: A A A B B C C C    A(6)  rows  0-1 cols 0-2
+//  r 1: A A A B B C C C    B(4)  rows  0-1 cols 3-4
+//  r 2: D D D D E E E E    C(6)  rows  0-1 cols 5-7
+//  r 3: D D D D E E E E    D(8)  rows  2-3 cols 0-3
+//  r 4: F F G G H H I I    E(8)  rows  2-3 cols 4-7
+//  r 5: F F G G H H I I    F(4)  rows  4-5 cols 0-1
+//  r 6: J J J J K K K K    G(4)  rows  4-5 cols 2-3
+//  r 7: J J J J K K K K    H(4)  rows  4-5 cols 4-5
+//  r 8: L L M M N N N N    I(4)  rows  4-5 cols 6-7
+//  r 9: L L M M N N N N    J(8)  rows  6-7 cols 0-3
+// r10: O O O O P P P P    K(8)  rows  6-7 cols 4-7
+// r11: O O O O P P P P    L(4)  rows  8-9 cols 0-1
+//                           M(4)  rows  8-9 cols 2-3
+//                           N(8)  rows  8-9 cols 4-7
+//                           O(8)  rows 10-11 cols 0-3
+//                           P(8)  rows 10-11 cols 4-7
 
-#Preview("Larger 8×12 grid") {
+#Preview("Larger 12×8 grid") {
     @Previewable @State var model = ShikakuModel(
-        rows: 8,
-        columns: 12,
+        rows: 12,
+        columns: 8,
         clues: [
-            ShikakuCoord(row: 1, col: 1):  9,  // A
-            ShikakuCoord(row: 0, col: 4):  6,  // B
-            ShikakuCoord(row: 1, col: 6):  4,  // C
-            ShikakuCoord(row: 0, col: 10): 8,  // D
-            ShikakuCoord(row: 2, col: 3):  4,  // E
-            ShikakuCoord(row: 3, col: 6):  6,  // F
-            ShikakuCoord(row: 2, col: 9):  8,  // G
-            ShikakuCoord(row: 4, col: 1):  9,  // H
-            ShikakuCoord(row: 5, col: 4):  6,  // I
-            ShikakuCoord(row: 4, col: 7):  6,  // J
-            ShikakuCoord(row: 5, col: 10): 6,  // K
-            ShikakuCoord(row: 6, col: 2):  8,  // L
-            ShikakuCoord(row: 7, col: 5):  6,  // M
-            ShikakuCoord(row: 6, col: 8):  6,  // N
-            ShikakuCoord(row: 7, col: 10): 4,  // O
+            ShikakuCoord(row: 0, col: 1):  6,  // A
+            ShikakuCoord(row: 1, col: 3):  4,  // B
+            ShikakuCoord(row: 0, col: 6):  6,  // C
+            ShikakuCoord(row: 2, col: 2):  8,  // D
+            ShikakuCoord(row: 3, col: 6):  8,  // E
+            ShikakuCoord(row: 4, col: 0):  4,  // F
+            ShikakuCoord(row: 5, col: 2):  4,  // G
+            ShikakuCoord(row: 4, col: 5):  4,  // H
+            ShikakuCoord(row: 5, col: 7):  4,  // I
+            ShikakuCoord(row: 6, col: 1):  8,  // J
+            ShikakuCoord(row: 7, col: 6):  8,  // K
+            ShikakuCoord(row: 8, col: 0):  4,  // L
+            ShikakuCoord(row: 9, col: 3):  4,  // M
+            ShikakuCoord(row: 8, col: 5):  8,  // N
+            ShikakuCoord(row: 10, col: 2): 8,  // O
+            ShikakuCoord(row: 11, col: 5): 8,  // P
         ]
     )
     ShikakuGameView(model: $model)

@@ -105,7 +105,7 @@ public struct ShikakuGameView: View {
                     }
             )
         }
-        .aspectRatio(3.0 / 2.0, contentMode: .fit)
+        .aspectRatio(2.0 / 3.0, contentMode: .fit)
     }
 
     // MARK: - Modifiers
