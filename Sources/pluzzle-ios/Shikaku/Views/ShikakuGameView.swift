@@ -105,7 +105,7 @@ public struct ShikakuGameView: View {
                     }
             )
         }
-        .aspectRatio(2.0 / 3.0, contentMode: .fit)
+        .aspectRatio(3.0 / 2.0, contentMode: .fit)
     }
 
     // MARK: - Modifiers
@@ -154,12 +154,14 @@ public struct ShikakuGameView: View {
 
     // MARK: - Helpers
 
-    /// Returns the side length of one square cell based on the available width.
+    /// Returns the side length of one square cell that fits within `size`.
     ///
-    /// Cells render at aspect ratio 1:1, so width is the binding constraint — using height
-    /// would produce a different (larger) value and cause row coordinates to map incorrectly.
+    /// Uses whichever dimension is the binding constraint (the one that would produce the
+    /// smaller cell), so the grid never overflows and cells are always square.
     private func cellSizeFor(_ size: CGSize) -> CGFloat {
-        max((size.width - gridSpacing * CGFloat(model.columns - 1)) / CGFloat(model.columns), 1)
+        let fromWidth  = (size.width  - gridSpacing * CGFloat(model.columns - 1)) / CGFloat(model.columns)
+        let fromHeight = (size.height - gridSpacing * CGFloat(model.rows    - 1)) / CGFloat(model.rows)
+        return max(min(fromWidth, fromHeight), 1)
     }
 
     /// Maps a local point to the nearest grid coordinate, clamped to valid bounds.
@@ -184,13 +186,23 @@ public struct ShikakuGameView: View {
         )
     }
 
-    /// Builds a stable rect→colorIndex map by sorting placed rects top-left to bottom-right.
+    /// Builds a rect→colorIndex map keyed to clue coordinates, not rect order.
+    ///
+    /// Clue coords are fixed for the lifetime of a puzzle, so sorting them once gives each
+    /// rectangle a stable colour that never shifts when other rectangles are placed or removed.
     private func buildColorMap() -> [ShikakuRect: Int] {
-        let sorted = model.rects.sorted {
+        let sortedClueCoords = model.clues.keys.sorted {
             $0.row != $1.row ? $0.row < $1.row : $0.col < $1.col
         }
+        let clueIndex = Dictionary(
+            uniqueKeysWithValues: sortedClueCoords.enumerated().map { ($1, $0) }
+        )
         var map: [ShikakuRect: Int] = [:]
-        for (i, rect) in sorted.enumerated() { map[rect] = i }
+        for rect in model.rects {
+            if let clueCoord = model.clues.keys.first(where: { rect.contains($0) }) {
+                map[rect] = clueIndex[clueCoord]
+            }
+        }
         return map
     }
 

@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Default cell, all modifiers and callbacks
 
-#Preview("Default — 5×7 example") {
+#Preview("Default — 9×6 example") {
     @Previewable @State var model = ShikakuModel.example
     ShikakuGameView(model: $model)
         .grid(spacing: 2, cell: ShikakuCell.self)
@@ -83,22 +83,35 @@ private struct CustomShikakuCell: ShikakuCellProtocol {
 }
 
 // MARK: - Larger grid
+//
+// 7 rows × 9 cols = 63 cells. Verified solution:
+//  col: 0 1 2 3 4 5 6 7 8
+//  r 0: A A A A B B B C C
+//  r 1: A A A A B B B C C
+//  r 2: D D D D B B B C C
+//  r 3: D D D D E E E E E
+//  r 4: F F F F E E E E E
+//  r 5: F F F F G G G H H
+//  r 6: F F F F G G G H H
+//
+//  A=8  rows 0-1 cols 0-3   B=9  rows 0-2 cols 4-6
+//  C=6  rows 0-2 cols 7-8   D=8  rows 2-3 cols 0-3
+//  E=10 rows 3-4 cols 4-8   F=12 rows 4-6 cols 0-3
+//  G=6  rows 5-6 cols 4-6   H=4  rows 5-6 cols 7-8
 
 #Preview("Larger 7×9 grid") {
     @Previewable @State var model = ShikakuModel(
         rows: 7,
         columns: 9,
         clues: [
-            ShikakuCoord(row: 0, col: 0): 3,
-            ShikakuCoord(row: 0, col: 4): 4,
-            ShikakuCoord(row: 0, col: 8): 6,
-            ShikakuCoord(row: 2, col: 2): 2,
-            ShikakuCoord(row: 2, col: 6): 4,
-            ShikakuCoord(row: 3, col: 0): 7,
-            ShikakuCoord(row: 4, col: 4): 3,
-            ShikakuCoord(row: 4, col: 8): 2,
-            ShikakuCoord(row: 6, col: 1): 6,
-            ShikakuCoord(row: 6, col: 6): 26,
+            ShikakuCoord(row: 0, col: 2):  8,  // A
+            ShikakuCoord(row: 1, col: 5):  9,  // B
+            ShikakuCoord(row: 2, col: 7):  6,  // C
+            ShikakuCoord(row: 3, col: 1):  8,  // D
+            ShikakuCoord(row: 4, col: 6): 10,  // E
+            ShikakuCoord(row: 5, col: 2): 12,  // F
+            ShikakuCoord(row: 6, col: 5):  6,  // G
+            ShikakuCoord(row: 5, col: 8):  4,  // H
         ]
     )
     ShikakuGameView(model: $model)

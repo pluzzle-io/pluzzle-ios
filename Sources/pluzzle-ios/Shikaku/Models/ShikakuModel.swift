@@ -177,26 +177,38 @@ public struct ShikakuModel: Sendable, Codable {
 
     // MARK: - Example
 
-    /// A ready-to-use 5×7 Shikaku puzzle for use in previews and testing.
+    /// A ready-to-use 6×9 Shikaku puzzle for use in previews and testing.
     ///
-    /// Grid layout (clue cells shown with their required area, `.` = empty):
+    /// 6 rows × 9 columns = 54 cells. cols/rows = 3/2, so the grid fills a 3:2 container
+    /// exactly with square cells. Clue values sum to 54. Verified solution:
+    ///
     /// ```
-    ///   . 6 . . . 4 .
-    ///   . . . 2 . . .
-    ///   . . . . . . .
-    ///   . . 3 . . 5 .
-    ///   . . . . . . .
+    ///  col: 0 1 2 3 4 5 6 7 8
+    ///  r 0: A A B B B C C D D    A (4)  rows 0-1 cols 0-1
+    ///  r 1: A A B B B C C D D    B (6)  rows 0-1 cols 2-4
+    ///  r 2: E E E F F F G G G    C (4)  rows 0-1 cols 5-6
+    ///  r 3: E E E F F F G G G    D (4)  rows 0-1 cols 7-8
+    ///  r 4: H H H H I I J J J    E (6)  rows 2-3 cols 0-2
+    ///  r 5: H H H H I I J J J    F (6)  rows 2-3 cols 3-5
+    ///                             G (6)  rows 2-3 cols 6-8
+    ///                             H (8)  rows 4-5 cols 0-3
+    ///                             I (4)  rows 4-5 cols 4-5
+    ///                             J (6)  rows 4-5 cols 6-8
     /// ```
     public static let example = ShikakuModel(
-        rows: 5,
-        columns: 7,
+        rows: 6,
+        columns: 9,
         clues: [
-            ShikakuCoord(row: 0, col: 1): 6,
-            ShikakuCoord(row: 0, col: 5): 4,
-            ShikakuCoord(row: 1, col: 3): 2,
-            ShikakuCoord(row: 3, col: 2): 3,
-            ShikakuCoord(row: 3, col: 5): 5,
-            ShikakuCoord(row: 4, col: 6): 15,
+            ShikakuCoord(row: 0, col: 0):  4,  // A
+            ShikakuCoord(row: 1, col: 3):  6,  // B
+            ShikakuCoord(row: 0, col: 5):  4,  // C
+            ShikakuCoord(row: 1, col: 8):  4,  // D
+            ShikakuCoord(row: 2, col: 1):  6,  // E
+            ShikakuCoord(row: 3, col: 4):  6,  // F
+            ShikakuCoord(row: 2, col: 7):  6,  // G
+            ShikakuCoord(row: 5, col: 2):  8,  // H
+            ShikakuCoord(row: 4, col: 4):  4,  // I
+            ShikakuCoord(row: 4, col: 6):  6,  // J
         ]
     )
 }
