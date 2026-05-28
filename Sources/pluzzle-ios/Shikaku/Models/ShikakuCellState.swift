@@ -16,18 +16,23 @@ public struct ShikakuCellState: Equatable, Hashable, Sendable {
     public let isViolation: Bool
     /// `true` when this cell is part of the rectangle currently being drawn by the player's drag.
     public let isPreview: Bool
+    /// Stable index into the colour palette for the rectangle that covers this cell.
+    /// `nil` when the cell is uncovered and not in preview.
+    public let colorIndex: Int?
 
     public init(
         clue: Int? = nil,
         rect: ShikakuRect? = nil,
         isRectOrigin: Bool = false,
         isViolation: Bool = false,
-        isPreview: Bool = false
+        isPreview: Bool = false,
+        colorIndex: Int? = nil
     ) {
         self.clue = clue
         self.rect = rect
         self.isRectOrigin = isRectOrigin
         self.isViolation = isViolation
         self.isPreview = isPreview
+        self.colorIndex = colorIndex
     }
 }

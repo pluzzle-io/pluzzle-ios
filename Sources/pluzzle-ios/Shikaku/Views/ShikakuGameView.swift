@@ -75,13 +75,14 @@ public struct ShikakuGameView: View {
         GeometryReader { geo in
             let cellSize = cellSizeFor(geo.size)
             let previewRect = makePreviewRect()
+            let colorMap = buildColorMap()
 
             VStack(alignment: .leading, spacing: gridSpacing) {
                 ForEach(0..<model.rows, id: \.self) { row in
                     HStack(spacing: gridSpacing) {
                         ForEach(0..<model.columns, id: \.self) { col in
                             let coord = ShikakuCoord(row: row, col: col)
-                            let state = cellState(for: coord, previewRect: previewRect)
+                            let state = cellState(for: coord, previewRect: previewRect, colorMap: colorMap)
 
                             cellFactory(row, col, state)
                                 .frame(width: cellSize, height: cellSize)
@@ -183,8 +184,18 @@ public struct ShikakuGameView: View {
         )
     }
 
+    /// Builds a stable rect→colorIndex map by sorting placed rects top-left to bottom-right.
+    private func buildColorMap() -> [ShikakuRect: Int] {
+        let sorted = model.rects.sorted {
+            $0.row != $1.row ? $0.row < $1.row : $0.col < $1.col
+        }
+        var map: [ShikakuRect: Int] = [:]
+        for (i, rect) in sorted.enumerated() { map[rect] = i }
+        return map
+    }
+
     /// Builds a ``ShikakuCellState`` for a single cell, factoring in violations and the preview.
-    private func cellState(for coord: ShikakuCoord, previewRect: ShikakuRect?) -> ShikakuCellState {
+    private func cellState(for coord: ShikakuCoord, previewRect: ShikakuRect?, colorMap: [ShikakuRect: Int]) -> ShikakuCellState {
         let clue = model.clues[coord]
         let placedRect = model.rect(at: coord)
         let isPreview = previewRect?.contains(coord) ?? false
@@ -199,7 +210,8 @@ public struct ShikakuGameView: View {
             rect: placedRect,
             isRectOrigin: placedRect.map { $0.row == coord.row && $0.col == coord.col } ?? false,
             isViolation: isViolation,
-            isPreview: isPreview && placedRect == nil
+            isPreview: isPreview && placedRect == nil,
+            colorIndex: placedRect.flatMap { colorMap[$0] }
         )
     }
 

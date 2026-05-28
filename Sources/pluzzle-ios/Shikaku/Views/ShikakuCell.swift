@@ -45,16 +45,22 @@ struct ShikakuCell: ShikakuCellProtocol {
         if state.isPreview {
             return Color.accentColor.opacity(0.25)
         }
-        if state.rect != nil {
-            return Color.accentColor.opacity(0.45)
+        if let index = state.colorIndex {
+            return palette[index % palette.count].opacity(0.55)
         }
         return Color(.systemGray5)
     }
 
     private var clueColor: Color {
-        if state.rect != nil || state.isPreview {
+        if state.colorIndex != nil || state.isPreview {
             return .white
         }
         return Color(.label)
     }
+
+    private let palette: [Color] = [
+        .blue, .green, .orange, .purple, .pink,
+        .teal, .indigo, .cyan, .mint,
+        Color(red: 0.85, green: 0.45, blue: 0.10),
+    ]
 }
