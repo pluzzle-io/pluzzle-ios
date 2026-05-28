@@ -16,6 +16,9 @@ public struct ShikakuCellState: Equatable, Hashable, Sendable {
     public let isViolation: Bool
     /// `true` when this cell is part of the rectangle currently being drawn by the player's drag.
     public let isPreview: Bool
+    /// `true` when this cell is covered by a placed rectangle AND falls inside the current drag
+    /// preview — meaning the placement will be overwritten when the drag is committed.
+    public let isOverlap: Bool
     /// Stable index into the colour palette for the rectangle that covers this cell.
     /// `nil` when the cell is uncovered and not in preview.
     public let colorIndex: Int?
@@ -26,6 +29,7 @@ public struct ShikakuCellState: Equatable, Hashable, Sendable {
         isRectOrigin: Bool = false,
         isViolation: Bool = false,
         isPreview: Bool = false,
+        isOverlap: Bool = false,
         colorIndex: Int? = nil
     ) {
         self.clue = clue
@@ -33,6 +37,7 @@ public struct ShikakuCellState: Equatable, Hashable, Sendable {
         self.isRectOrigin = isRectOrigin
         self.isViolation = isViolation
         self.isPreview = isPreview
+        self.isOverlap = isOverlap
         self.colorIndex = colorIndex
     }
 }

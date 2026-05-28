@@ -7,6 +7,7 @@ import SwiftUI
 /// - **Clue cell** — tile with the clue number centred in bold.
 /// - **Covered cell** — tinted background showing it belongs to a placed rectangle.
 /// - **Preview cell** — lighter tint indicating the rectangle currently being drawn.
+/// - **Overlap cell** — orange overlay while a drag preview would overwrite an existing rectangle.
 /// - **Violation** — red tint overlay when the covering rectangle breaks a rule.
 struct ShikakuCell: ShikakuCellProtocol {
     let row: Int
@@ -24,7 +25,10 @@ struct ShikakuCell: ShikakuCellProtocol {
             RoundedRectangle(cornerRadius: 6)
                 .fill(backgroundColor)
 
-            if state.isViolation {
+            if state.isOverlap {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.orange.opacity(0.55))
+            } else if state.isViolation {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(Color.red.opacity(0.25))
             }

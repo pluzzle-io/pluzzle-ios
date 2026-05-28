@@ -210,7 +210,8 @@ public struct ShikakuGameView: View {
     private func cellState(for coord: ShikakuCoord, previewRect: ShikakuRect?, colorMap: [ShikakuRect: Int]) -> ShikakuCellState {
         let clue = model.clues[coord]
         let placedRect = model.rect(at: coord)
-        let isPreview = previewRect?.contains(coord) ?? false
+        let inPreview = previewRect?.contains(coord) ?? false
+        let isOverlap = placedRect != nil && inPreview
 
         var isViolation = false
         if shouldShowViolations, let r = placedRect {
@@ -222,7 +223,8 @@ public struct ShikakuGameView: View {
             rect: placedRect,
             isRectOrigin: placedRect.map { $0.row == coord.row && $0.col == coord.col } ?? false,
             isViolation: isViolation,
-            isPreview: isPreview && placedRect == nil,
+            isPreview: inPreview && placedRect == nil,
+            isOverlap: isOverlap,
             colorIndex: placedRect.flatMap { colorMap[$0] }
         )
     }
