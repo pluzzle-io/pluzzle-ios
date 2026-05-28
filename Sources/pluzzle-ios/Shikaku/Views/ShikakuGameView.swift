@@ -76,7 +76,7 @@ public struct ShikakuGameView: View {
             let cellSize = cellSizeFor(geo.size)
             let previewRect = makePreviewRect()
 
-            VStack(spacing: gridSpacing) {
+            VStack(alignment: .leading, spacing: gridSpacing) {
                 ForEach(0..<model.rows, id: \.self) { row in
                     HStack(spacing: gridSpacing) {
                         ForEach(0..<model.columns, id: \.self) { col in
@@ -84,7 +84,7 @@ public struct ShikakuGameView: View {
                             let state = cellState(for: coord, previewRect: previewRect)
 
                             cellFactory(row, col, state)
-                                .contentShape(Rectangle())
+                                .frame(width: cellSize, height: cellSize)
                         }
                     }
                 }
@@ -98,9 +98,7 @@ public struct ShikakuGameView: View {
                         dragEnd = current
                     }
                     .onEnded { value in
-                        let end = coord(for: value.location, cellSize: cellSize)
-                        dragEnd = end
-                        commitDrag()
+                        commitDrag(end: coord(for: value.location, cellSize: cellSize))
                         dragStart = nil
                         dragEnd = nil
                     }
@@ -155,17 +153,18 @@ public struct ShikakuGameView: View {
 
     // MARK: - Helpers
 
-    /// Computes the size of a single cell given the available geometry.
-    private func cellSizeFor(_ size: CGSize) -> CGSize {
-        let w = (size.width  - gridSpacing * CGFloat(model.columns - 1)) / CGFloat(model.columns)
-        let h = (size.height - gridSpacing * CGFloat(model.rows    - 1)) / CGFloat(model.rows)
-        return CGSize(width: max(w, 1), height: max(h, 1))
+    /// Returns the side length of one square cell based on the available width.
+    ///
+    /// Cells render at aspect ratio 1:1, so width is the binding constraint — using height
+    /// would produce a different (larger) value and cause row coordinates to map incorrectly.
+    private func cellSizeFor(_ size: CGSize) -> CGFloat {
+        max((size.width - gridSpacing * CGFloat(model.columns - 1)) / CGFloat(model.columns), 1)
     }
 
     /// Maps a local point to the nearest grid coordinate, clamped to valid bounds.
-    private func coord(for point: CGPoint, cellSize: CGSize) -> ShikakuCoord {
-        let col = Int(point.x / (cellSize.width  + gridSpacing))
-        let row = Int(point.y / (cellSize.height + gridSpacing))
+    private func coord(for point: CGPoint, cellSize: CGFloat) -> ShikakuCoord {
+        let col = Int(point.x / (cellSize + gridSpacing))
+        let row = Int(point.y / (cellSize + gridSpacing))
         return ShikakuCoord(
             row: max(0, min(row, model.rows    - 1)),
             col: max(0, min(col, model.columns - 1))
@@ -218,7 +217,8 @@ public struct ShikakuGameView: View {
     }
 
     /// Commits the current drag as a rectangle placement (or tap-to-remove).
-    private func commitDrag() {
+    private func commitDrag(end: ShikakuCoord) {
+        dragEnd = end
         guard let rect = makePreviewRect() else { return }
 
         // Single-cell gesture on an already-covered cell → remove that rect.
