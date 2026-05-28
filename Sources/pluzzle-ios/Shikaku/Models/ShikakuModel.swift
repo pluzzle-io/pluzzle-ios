@@ -83,6 +83,14 @@ public struct ShikakuModel: Sendable, Codable {
     /// Clue cells. Keys are coordinates; values are the required rectangle area for that cell.
     public let clues: [ShikakuCoord: Int]
 
+    // MARK: - Solution
+
+    /// The complete correct set of rectangles for this puzzle, or `nil` if no solution was supplied.
+    ///
+    /// Required by ``revealHint()``. Has no effect on normal gameplay — the SDK never validates
+    /// player moves against the solution; it only checks the Shikaku rules directly.
+    public let solution: [ShikakuRect]?
+
     // MARK: - Live state
 
     /// The set of rectangles the player has placed so far.
@@ -142,12 +150,14 @@ public struct ShikakuModel: Sendable, Codable {
         rows: Int,
         columns: Int,
         clues: [ShikakuCoord: Int],
+        solution: [ShikakuRect]? = nil,
         rects: [ShikakuRect] = [],
         isSolved: Bool = false
     ) {
         self.rows = rows
         self.columns = columns
         self.clues = clues
+        self.solution = solution
         self.rects = rects
         self.isSolved = isSolved
     }
@@ -158,6 +168,18 @@ public struct ShikakuModel: Sendable, Codable {
     public mutating func reset() {
         rects = []
         isSolved = false
+    }
+
+    /// Reveals one randomly chosen unsolved rectangle from the solution.
+    ///
+    /// Picks a rectangle from ``solution`` that the player has not yet placed correctly,
+    /// then calls ``place(_:)`` to commit it — removing any overlapping player rectangles first.
+    /// Has no effect when no solution was provided or when every solution rectangle is already placed.
+    public mutating func revealHint() {
+        guard let solution else { return }
+        let unsolved = solution.filter { !rects.contains($0) }
+        guard let rect = unsolved.randomElement() else { return }
+        place(rect)
     }
 
     /// Places `rect` in the grid, removing any existing rectangles that overlap with it first.
@@ -209,6 +231,18 @@ public struct ShikakuModel: Sendable, Codable {
             ShikakuCoord(row: 6, col: 1): 6,  // H
             ShikakuCoord(row: 7, col: 4): 4,  // I
             ShikakuCoord(row: 8, col: 4): 4,  // J
+        ],
+        solution: [
+            ShikakuRect(row: 0, col: 0, rowSpan: 3, colSpan: 2),  // A
+            ShikakuRect(row: 0, col: 2, rowSpan: 2, colSpan: 2),  // B
+            ShikakuRect(row: 0, col: 4, rowSpan: 3, colSpan: 2),  // C
+            ShikakuRect(row: 2, col: 2, rowSpan: 3, colSpan: 2),  // D
+            ShikakuRect(row: 3, col: 0, rowSpan: 3, colSpan: 2),  // E
+            ShikakuRect(row: 3, col: 4, rowSpan: 3, colSpan: 2),  // F
+            ShikakuRect(row: 5, col: 2, rowSpan: 3, colSpan: 2),  // G
+            ShikakuRect(row: 6, col: 0, rowSpan: 3, colSpan: 2),  // H
+            ShikakuRect(row: 6, col: 4, rowSpan: 2, colSpan: 2),  // I
+            ShikakuRect(row: 8, col: 2, rowSpan: 1, colSpan: 4),  // J
         ]
     )
 }
@@ -232,7 +266,7 @@ extension ShikakuCoord {
 extension ShikakuModel {
     // Custom Codable for [ShikakuCoord: Int] — encode as array of {coord, value} pairs.
     private enum CodingKeys: String, CodingKey {
-        case rows, columns, clues, rects, isSolved
+        case rows, columns, clues, solution, rects, isSolved
     }
 
     private struct CluePair: Codable {
@@ -246,6 +280,7 @@ extension ShikakuModel {
         columns = try container.decode(Int.self, forKey: .columns)
         let pairs = try container.decode([CluePair].self, forKey: .clues)
         clues = Dictionary(uniqueKeysWithValues: pairs.map { ($0.coord, $0.value) })
+        solution = try container.decodeIfPresent([ShikakuRect].self, forKey: .solution)
         rects = try container.decode([ShikakuRect].self, forKey: .rects)
         isSolved = try container.decode(Bool.self, forKey: .isSolved)
     }
@@ -256,6 +291,7 @@ extension ShikakuModel {
         try container.encode(columns, forKey: .columns)
         let pairs = clues.map { CluePair(coord: $0.key, value: $0.value) }
         try container.encode(pairs, forKey: .clues)
+        try container.encodeIfPresent(solution, forKey: .solution)
         try container.encode(rects, forKey: .rects)
         try container.encode(isSolved, forKey: .isSolved)
     }

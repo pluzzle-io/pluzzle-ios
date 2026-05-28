@@ -4,16 +4,22 @@ import SwiftUI
 
 #Preview("Default — 9×6 example") {
     @Previewable @State var model = ShikakuModel.example
-    ShikakuGameView(model: $model)
-        .grid(spacing: 2, cell: ShikakuCell.self)
-        .showViolations(true)
-        .onMove { rect in
-            print("Placed rect at (\(rect.row),\(rect.col)) \(rect.rowSpan)×\(rect.colSpan) area=\(rect.area)")
-        }
-        .onComplete {
-            print("Puzzle solved!")
-        }
-        .padding()
+    @Previewable @State var hintCount = 0
+    VStack(spacing: 16) {
+        ShikakuGameView(model: $model)
+            .grid(spacing: 2, cell: ShikakuCell.self)
+            .showViolations(true)
+            .hint(trigger: $hintCount)
+            .onMove { rect in
+                print("Placed rect at (\(rect.row),\(rect.col)) \(rect.rowSpan)×\(rect.colSpan) area=\(rect.area)")
+            }
+            .onComplete {
+                print("Puzzle solved!")
+            }
+        Button("Hint") { hintCount += 1 }
+            .buttonStyle(.borderedProminent)
+    }
+    .padding()
 }
 
 // MARK: - Violations disabled

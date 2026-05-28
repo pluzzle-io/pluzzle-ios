@@ -48,6 +48,7 @@ public struct ShikakuGameView: View {
         AnyView(ShikakuCell(row: row, column: col, state: state))
     }
 
+    private var hintTrigger: Binding<Int>? = nil
     private var onMoveCallback: ((_ rect: ShikakuRect) -> Void)? = nil
     private var onCompleteCallback: (() -> Void)? = nil
 
@@ -106,6 +107,14 @@ public struct ShikakuGameView: View {
             )
         }
         .aspectRatio(2.0 / 3.0, contentMode: .fit)
+        .onChange(of: hintTrigger?.wrappedValue ?? 0) { oldValue, newValue in
+            guard newValue > oldValue, newValue > 0 else { return }
+            let wasSolved = model.isSolved
+            model.revealHint()
+            if !wasSolved && model.isSolved {
+                onCompleteCallback?()
+            }
+        }
     }
 
     // MARK: - Modifiers
@@ -140,6 +149,29 @@ public struct ShikakuGameView: View {
     public func onMove(_ handler: @escaping (_ rect: ShikakuRect) -> Void) -> Self {
         var copy = self
         copy.onMoveCallback = handler
+        return copy
+    }
+
+    /// Connects an external hint counter to the view.
+    ///
+    /// Each time the binding's value **increases**, one randomly chosen unsolved rectangle from
+    /// ``ShikakuModel/solution`` is revealed and placed on the grid. Has no effect when no
+    /// solution was provided or when every solution rectangle is already correctly placed.
+    ///
+    /// ```swift
+    /// @State private var hintCount = 0
+    ///
+    /// ShikakuGameView(model: $model)
+    ///     .hint(trigger: $hintCount)
+    ///
+    /// Button("Hint") { hintCount += 1 }
+    /// ```
+    ///
+    /// - Parameter trigger: A binding to an integer counter owned by the parent. The view reads
+    ///   this value reactively; only increases trigger a reveal.
+    public func hint(trigger: Binding<Int>) -> Self {
+        var copy = self
+        copy.hintTrigger = trigger
         return copy
     }
 

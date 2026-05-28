@@ -97,7 +97,7 @@ public struct TakuzuGameView: View {
             }
         }
         .onChange(of: hintTrigger?.wrappedValue ?? 0) { oldValue, newValue in
-            guard newValue > oldValue else { return }
+            guard newValue > oldValue, newValue > 0 else { return }
             var updated = model
             updated.revealHint()
             model = updated
