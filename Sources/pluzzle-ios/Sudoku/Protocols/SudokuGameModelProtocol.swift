@@ -38,6 +38,23 @@ public protocol SudokuGameModelProtocol: Sendable {
 }
 
 public extension SudokuGameModelProtocol {
+    /// Reveals one randomly chosen empty editable cell by filling it with its solution value.
+    ///
+    /// An "empty editable" cell is one where `grid[r][c] == nil` (not a given) and
+    /// `state[r][c] == nil` (not yet filled by the player). If no such cell exists this
+    /// method is a no-op.
+    mutating func revealHint() {
+        var candidates: [(row: Int, col: Int)] = []
+        for r in grid.indices {
+            for c in grid[r].indices {
+                guard grid[r][c] == nil, state[r][c] == nil else { continue }
+                candidates.append((r, c))
+            }
+        }
+        guard let chosen = candidates.randomElement() else { return }
+        state[chosen.row][chosen.col] = solution[chosen.row][chosen.col]
+    }
+
     /// `true` when every cell has been filled (regardless of correctness).
     var isComplete: Bool {
         guard state.count == grid.count else { return false }

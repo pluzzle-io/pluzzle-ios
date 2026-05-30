@@ -229,6 +229,40 @@ public struct MinesweeperModel: Sendable, Codable {
         neighbors(of: coord).filter { mines.contains($0) }.count
     }
 
+    /// Reveals one randomly chosen safe hidden cell as a hint.
+    ///
+    /// Picks a cell that is currently `.hidden` or `.flagged` and is not a mine,
+    /// then reveals it by setting its state to `.revealed(adjacentMines:)` and
+    /// incrementing `score`. Does nothing when:
+    /// - the game is over,
+    /// - mines have not yet been placed (game hasn't started — no safe reveal is possible), or
+    /// - no hidden safe cells remain.
+    ///
+    /// The caller (``MinesweeperGameView``) is responsible for triggering a flood-fill if
+    /// the revealed cell has zero adjacent mines.
+    ///
+    /// - Returns: The revealed coordinate, or `nil` if no hint was applied.
+    @discardableResult
+    public mutating func revealHint() -> MinesweeperCoord? {
+        guard !isGameOver, !activeMines.isEmpty else { return nil }
+        var candidates: [MinesweeperCoord] = []
+        for r in 0..<rows {
+            for c in 0..<columns {
+                let coord = MinesweeperCoord(row: r, col: c)
+                guard !activeMines.contains(coord) else { continue }
+                switch cellStates[r][c] {
+                case .hidden, .flagged: candidates.append(coord)
+                default: break
+                }
+            }
+        }
+        guard let chosen = candidates.randomElement() else { return nil }
+        let adj = adjacentMineCount(for: chosen, in: activeMines)
+        cellStates[chosen.row][chosen.col] = .revealed(adjacentMines: adj)
+        score += 1
+        return chosen
+    }
+
     /// Places `mineCount` mines across the grid, excluding every coord in `safeZone`.
     ///
     /// Placement strategy is determined by ``generationMode``:

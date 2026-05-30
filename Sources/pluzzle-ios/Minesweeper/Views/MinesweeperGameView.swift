@@ -65,6 +65,7 @@ public struct MinesweeperGameView: View {
         AnyView(MinesweeperCell(row: row, column: col, state: state))
     }
 
+    private var hintTrigger: Binding<Int>? = nil
     private var onInputCallback: ((_ coord: MinesweeperCoord, _ score: Int) -> Void)? = nil
     private var onCompletionCallback: ((_ didWin: Bool) -> Void)? = nil
 
@@ -102,6 +103,18 @@ public struct MinesweeperGameView: View {
             hasAutoTapped = true
             try? await Task.sleep(for: .seconds(0.25))
             handleTap(at: coord)
+        }
+        .onChange(of: hintTrigger?.wrappedValue ?? 0) { oldValue, newValue in
+            guard newValue > oldValue, newValue > 0 else { return }
+            if let coord = model.revealHint() {
+                onInputCallback?(coord, model.score)
+                let adj = model.adjacentMineCount(for: coord, in: model.activeMines)
+                if adj == 0 {
+                    revealCells(from: coord)
+                } else {
+                    checkWin()
+                }
+            }
         }
         .onDisappear { revealEpoch += 1 }
     }
@@ -158,6 +171,30 @@ public struct MinesweeperGameView: View {
     public func flaggingMode(_ isOn: Bool) -> Self {
         var copy = self
         copy.isFlagging = isOn
+        return copy
+    }
+
+    /// Connects an external hint counter to the view.
+    ///
+    /// Each time the binding's value **increases**, one randomly chosen hidden safe cell is
+    /// revealed. If that cell has zero adjacent mines the reveal flood-fills outward
+    /// automatically, identical to a player tap. Has no effect when mines have not yet been
+    /// placed (game hasn't started), when the game is over, or when no hidden safe cells remain.
+    ///
+    /// ```swift
+    /// @State private var hintCount = 0
+    ///
+    /// MinesweeperGameView(model: $model)
+    ///     .hint(trigger: $hintCount)
+    ///
+    /// Button("Hint") { hintCount += 1 }
+    /// ```
+    ///
+    /// - Parameter trigger: A binding to an integer counter owned by the parent. The view reads
+    ///   this value reactively; only increases trigger a reveal.
+    public func hint(trigger: Binding<Int>) -> Self {
+        var copy = self
+        copy.hintTrigger = trigger
         return copy
     }
 

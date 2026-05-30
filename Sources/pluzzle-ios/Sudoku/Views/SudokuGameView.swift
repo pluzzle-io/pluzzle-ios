@@ -137,6 +137,9 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
 
     private var accessoryViewFactory: (() -> AnyView)? = nil
 
+    // Hint trigger
+    private var hintTrigger: Binding<Int>? = nil
+
     // Callbacks
     private var onSelectCallback: ((_ row: Int, _ col: Int) -> Void)? = nil
     private var onInputCallback: ((_ row: Int, _ col: Int, _ value: Int?) -> Void)? = nil
@@ -162,6 +165,14 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
         }
         .onChange(of: model.isComplete) { _, isComplete in
             if !isComplete { completionFired = false }
+        }
+        .onChange(of: hintTrigger?.wrappedValue ?? 0) { oldValue, newValue in
+            guard newValue > oldValue, newValue > 0 else { return }
+            model.revealHint()
+            if model.isComplete && !completionFired {
+                completionFired = true
+                onCompletionCallback?(model.isCorrect)
+            }
         }
     }
 
@@ -357,6 +368,29 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     public func onInput(_ handler: @escaping (_ row: Int, _ col: Int, _ value: Int?) -> Void) -> Self {
         var copy = self
         copy.onInputCallback = handler
+        return copy
+    }
+
+    /// Connects an external hint counter to the view.
+    ///
+    /// Each time the binding's value **increases**, one randomly chosen empty editable cell is
+    /// filled with its correct solution value. Has no effect when every editable cell is already
+    /// filled.
+    ///
+    /// ```swift
+    /// @State private var hintCount = 0
+    ///
+    /// SudokuGameView(model: $model, isNotesMode: $isNotesMode)
+    ///     .hint(trigger: $hintCount)
+    ///
+    /// Button("Hint") { hintCount += 1 }
+    /// ```
+    ///
+    /// - Parameter trigger: A binding to an integer counter owned by the parent. The view reads
+    ///   this value reactively; only increases trigger a reveal.
+    public func hint(trigger: Binding<Int>) -> Self {
+        var copy = self
+        copy.hintTrigger = trigger
         return copy
     }
 
