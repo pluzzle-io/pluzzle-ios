@@ -60,6 +60,10 @@ public struct MinesweeperGameView: View {
     /// not on resume or background return.
     @State private var hasAutoTapped: Bool = false
 
+    /// When `true` the next player tap is treated as mine-safe: the game will not end even
+    /// if the tapped cell contains a mine. Cleared immediately after one tap.
+    @State private var isHintModeActive: Bool = false
+
     private var cellFactory: (_ row: Int, _ col: Int, _ state: MinesweeperCellState) -> AnyView =
     { row, col, state in
         AnyView(MinesweeperCell(row: row, column: col, state: state))
@@ -85,18 +89,32 @@ public struct MinesweeperGameView: View {
     // MARK: - Body
 
     public var body: some View {
-        VStack(spacing: gridSpacing) {
-            ForEach(0..<model.rows, id: \.self) { row in
-                HStack(spacing: gridSpacing) {
-                    ForEach(0..<model.columns, id: \.self) { col in
-                        let coord = MinesweeperCoord(row: row, col: col)
-                        cellFactory(row, col, model.cellStates[row][col])
-                            .onTapGesture { handleTap(at: coord) }
-                            .onLongPressGesture { handleLongPress(at: coord) }
+        ZStack(alignment: .top) {
+            VStack(spacing: gridSpacing) {
+                ForEach(0..<model.rows, id: \.self) { row in
+                    HStack(spacing: gridSpacing) {
+                        ForEach(0..<model.columns, id: \.self) { col in
+                            let coord = MinesweeperCoord(row: row, col: col)
+                            cellFactory(row, col, model.cellStates[row][col])
+                                .onTapGesture { handleTap(at: coord) }
+                                .onLongPressGesture { handleLongPress(at: coord) }
+                        }
                     }
                 }
             }
+            if isHintModeActive {
+                Text("Tap any cell — mine-safe!")
+                    .font(.caption.bold())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.orange)
+                    .clipShape(Capsule())
+                    .padding(.top, 4)
+                    .transition(.opacity)
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: isHintModeActive)
         .task {
             guard !hasAutoTapped, model.score == 0 else { return }
             let coord = bestAutoTapCoord()
@@ -106,15 +124,8 @@ public struct MinesweeperGameView: View {
         }
         .onChange(of: hintTrigger?.wrappedValue ?? 0) { oldValue, newValue in
             guard newValue > oldValue, newValue > 0 else { return }
-            if let coord = model.revealHint() {
-                onInputCallback?(coord, model.score)
-                let adj = model.adjacentMineCount(for: coord, in: model.activeMines)
-                if adj == 0 {
-                    revealCells(from: coord)
-                } else {
-                    checkWin()
-                }
-            }
+            guard !model.isGameOver, !model.activeMines.isEmpty else { return }
+            isHintModeActive = true
         }
         .onDisappear { revealEpoch += 1 }
     }
@@ -176,10 +187,11 @@ public struct MinesweeperGameView: View {
 
     /// Connects an external hint counter to the view.
     ///
-    /// Each time the binding's value **increases**, one randomly chosen hidden safe cell is
-    /// revealed. If that cell has zero adjacent mines the reveal flood-fills outward
-    /// automatically, identical to a player tap. Has no effect when mines have not yet been
-    /// placed (game hasn't started), when the game is over, or when no hidden safe cells remain.
+    /// Each time the binding's value **increases**, hint mode is activated: the board enters a
+    /// protected state where the player can tap any cell freely. If a mine is tapped during
+    /// hint mode the game does **not** end — the cell is revealed safely. Hint mode ends once
+    /// the player taps any hidden cell. Has no effect when mines have not yet been placed
+    /// (game hasn't started) or when the game is over.
     ///
     /// ```swift
     /// @State private var hintCount = 0
@@ -191,7 +203,7 @@ public struct MinesweeperGameView: View {
     /// ```
     ///
     /// - Parameter trigger: A binding to an integer counter owned by the parent. The view reads
-    ///   this value reactively; only increases trigger a reveal.
+    ///   this value reactively; only increases activate hint mode.
     public func hint(trigger: Binding<Int>) -> Self {
         var copy = self
         copy.hintTrigger = trigger
@@ -277,6 +289,12 @@ public struct MinesweeperGameView: View {
         if model.activeMines.isEmpty && model.mines.isEmpty {
             let safeZone = Set([coord] + model.neighbors(of: coord))
             model.activeMines = model.generateMines(avoiding: safeZone)
+        }
+
+        if isHintModeActive {
+            isHintModeActive = false
+            revealCells(from: coord)
+            return
         }
 
         if model.activeMines.contains(coord) {
