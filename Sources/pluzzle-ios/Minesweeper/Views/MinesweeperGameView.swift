@@ -89,32 +89,18 @@ public struct MinesweeperGameView: View {
     // MARK: - Body
 
     public var body: some View {
-        ZStack(alignment: .top) {
-            VStack(spacing: gridSpacing) {
-                ForEach(0..<model.rows, id: \.self) { row in
-                    HStack(spacing: gridSpacing) {
-                        ForEach(0..<model.columns, id: \.self) { col in
-                            let coord = MinesweeperCoord(row: row, col: col)
-                            cellFactory(row, col, model.cellStates[row][col])
-                                .onTapGesture { handleTap(at: coord) }
-                                .onLongPressGesture { handleLongPress(at: coord) }
-                        }
+        VStack(spacing: gridSpacing) {
+            ForEach(0..<model.rows, id: \.self) { row in
+                HStack(spacing: gridSpacing) {
+                    ForEach(0..<model.columns, id: \.self) { col in
+                        let coord = MinesweeperCoord(row: row, col: col)
+                        cellFactory(row, col, model.cellStates[row][col])
+                            .onTapGesture { handleTap(at: coord) }
+                            .onLongPressGesture { handleLongPress(at: coord) }
                     }
                 }
             }
-            if isHintModeActive {
-                Text("Tap any cell — mine-safe!")
-                    .font(.caption.bold())
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.orange)
-                    .clipShape(Capsule())
-                    .padding(.top, 4)
-                    .transition(.opacity)
-            }
         }
-        .animation(.easeInOut(duration: 0.2), value: isHintModeActive)
         .task {
             guard !hasAutoTapped, model.score == 0 else { return }
             let coord = bestAutoTapCoord()
@@ -125,6 +111,13 @@ public struct MinesweeperGameView: View {
         .onChange(of: hintTrigger?.wrappedValue ?? 0) { oldValue, newValue in
             guard newValue > oldValue, newValue > 0 else { return }
             guard !model.isGameOver, !model.activeMines.isEmpty else { return }
+            for row in 0..<model.rows {
+                for col in 0..<model.columns {
+                    if case .hidden = model.cellStates[row][col] {
+                        model.cellStates[row][col] = .hintEligible
+                    }
+                }
+            }
             isHintModeActive = true
         }
         .onDisappear { revealEpoch += 1 }
@@ -283,7 +276,10 @@ public struct MinesweeperGameView: View {
             return
         }
 
-        guard case .hidden = model.cellStates[coord.row][coord.col] else { return }
+        switch model.cellStates[coord.row][coord.col] {
+        case .hidden, .hintEligible: break
+        default: return
+        }
 
         // Auto-generate mines on first tap, guaranteeing the tapped cell + its neighbors are safe
         if model.activeMines.isEmpty && model.mines.isEmpty {
@@ -293,6 +289,14 @@ public struct MinesweeperGameView: View {
 
         if isHintModeActive {
             isHintModeActive = false
+            // Revert all hint-eligible cells back to hidden before handling the tap
+            for row in 0..<model.rows {
+                for col in 0..<model.columns {
+                    if case .hintEligible = model.cellStates[row][col] {
+                        model.cellStates[row][col] = .hidden
+                    }
+                }
+            }
             if model.activeMines.contains(coord) {
                 model.cellStates[coord.row][coord.col] = .mineRevealed
             } else {
@@ -403,7 +407,7 @@ public struct MinesweeperGameView: View {
         if revealMines {
             for mine in model.activeMines {
                 switch model.cellStates[mine.row][mine.col] {
-                case .hidden, .flagged:
+                case .hidden, .flagged, .hintEligible:
                     model.cellStates[mine.row][mine.col] = .mineRevealed
                 default:
                     break
