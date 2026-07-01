@@ -189,7 +189,7 @@ public struct MinesweeperGameView: View {
     ///
     /// Each time the binding's value **increases**, hint mode is activated: the board enters a
     /// protected state where the player can tap any cell freely. If a mine is tapped during
-    /// hint mode the game does **not** end — the cell is revealed safely. Hint mode ends once
+    /// hint mode the game does **not** end — the mine is shown but play continues. Hint mode ends once
     /// the player taps any hidden cell. Has no effect when mines have not yet been placed
     /// (game hasn't started) or when the game is over.
     ///
@@ -293,7 +293,11 @@ public struct MinesweeperGameView: View {
 
         if isHintModeActive {
             isHintModeActive = false
-            revealCells(from: coord)
+            if model.activeMines.contains(coord) {
+                model.cellStates[coord.row][coord.col] = .mineRevealed
+            } else {
+                revealCells(from: coord)
+            }
             return
         }
 
