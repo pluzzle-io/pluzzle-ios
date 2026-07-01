@@ -38,12 +38,27 @@ public protocol SudokuCellProtocol: View {
     /// bottom-right for a 9×9 puzzle). Override this init to act on the position; the default
     /// implementation simply forwards to ``init(isSelected:text:isFixed:notes:)``.
     init(isSelected: Bool, text: String, isFixed: Bool, notes: Set<Int>?, index: Int)
+
+    /// Creates a cell view and additionally receives whether hint mode is active for this cell.
+    ///
+    /// `isHintEligible` is `true` when a hint has been triggered and this cell is empty and
+    /// editable — tapping it will fill it with the correct solution value. Use this flag to
+    /// render a visual indicator (e.g. a tinted background) so the player knows where to tap.
+    ///
+    /// The default implementation ignores `isHintEligible` and delegates to the `index` init,
+    /// so existing conformers require no changes to compile.
+    init(isSelected: Bool, text: String, isFixed: Bool, notes: Set<Int>?, index: Int, isHintEligible: Bool)
 }
 
 extension SudokuCellProtocol {
     /// Default: ignores `index` and delegates to the primary init (backward compatible).
     public init(isSelected: Bool, text: String, isFixed: Bool, notes: Set<Int>?, index: Int) {
         self.init(isSelected: isSelected, text: text, isFixed: isFixed, notes: notes)
+    }
+
+    /// Default: ignores `isHintEligible` and delegates to the `index` init (backward compatible).
+    public init(isSelected: Bool, text: String, isFixed: Bool, notes: Set<Int>?, index: Int, isHintEligible: Bool) {
+        self.init(isSelected: isSelected, text: text, isFixed: isFixed, notes: notes, index: index)
     }
 
     /// Convenience initialiser that omits `notes`, defaulting to `nil`.

@@ -95,6 +95,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     /// Guards `onCompletionCallback` so it fires at most once per completed board.
     /// Reset automatically when the board goes back to incomplete (e.g. after `model.reset()`).
     @State private var completionFired = false
+    @State private var isHintModeActive: Bool = false
 
     @Binding var model: Model
     @Binding var isNotesMode: Bool
@@ -125,9 +126,9 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     private var count: Int { n * m }
 
     // Type-erased factories (default implementations)
-    private var cellFactory: (_ isSelected: Bool, _ text: String, _ isFixed: Bool, _ notes: Set<Int>?, _ index: Int) -> AnyView =
-    { isSelected, text, isFixed, notes, index in
-        AnyView(SudokuGameCell(isSelected: isSelected, text: text, isFixed: isFixed, notes: notes, index: index))
+    private var cellFactory: (_ isSelected: Bool, _ text: String, _ isFixed: Bool, _ notes: Set<Int>?, _ index: Int, _ isHintEligible: Bool) -> AnyView =
+    { isSelected, text, isFixed, notes, index, isHintEligible in
+        AnyView(SudokuGameCell(isSelected: isSelected, text: text, isFixed: isFixed, notes: notes, index: index, isHintEligible: isHintEligible))
     }
 
     private var inputPadFactory: (_ label: String, _ onTap: @escaping () -> Void) -> AnyView =
@@ -168,11 +169,8 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
         }
         .onChange(of: hintTrigger?.wrappedValue ?? 0) { oldValue, newValue in
             guard newValue > oldValue, newValue > 0 else { return }
-            model.revealHint()
-            if model.isComplete && !completionFired {
-                completionFired = true
-                onCompletionCallback?(model.isCorrect)
-            }
+            guard !model.isComplete else { return }
+            isHintModeActive = true
         }
     }
 
@@ -251,12 +249,26 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
                     let text = displayValue.map(String.init) ?? ""
                     let cellNotes: Set<Int>? = model.notes?[safe: row]?[safe: col]
                     let isSelected = selectedIndex == index
+                    let isHintEligible = isHintModeActive && text.isEmpty && !isFixed
 
-                    cellFactory(isSelected, text, isFixed, cellNotes, index)
+                    cellFactory(isSelected, text, isFixed, cellNotes, index, isHintEligible)
                         .frame(width: cellSize, height: cellSize)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            guard !isFixed, !isSelected else { return }
+                            guard !isFixed else { return }
+                            if isHintModeActive {
+                                isHintModeActive = false
+                                guard model.state[safe: row]?[safe: col] == nil else { return }
+                                model.state[row][col] = model.solution[row][col]
+                                model.notes?[row][col] = []
+                                onInputCallback?(row, col, model.solution[row][col])
+                                if model.isComplete && !completionFired {
+                                    completionFired = true
+                                    onCompletionCallback?(model.isCorrect)
+                                }
+                                return
+                            }
+                            guard !isSelected else { return }
                             selectedIndex = index
                             onSelectCallback?(row, col)
                         }
@@ -316,8 +328,8 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
         var copy = self
         copy.gridSpacing = spacing
         copy.gridCornerRadius = cornerRadius
-        copy.cellFactory = { isSelected, text, isFixed, notes, index in
-            AnyView(T(isSelected: isSelected, text: text, isFixed: isFixed, notes: notes, index: index))
+        copy.cellFactory = { isSelected, text, isFixed, notes, index, isHintEligible in
+            AnyView(T(isSelected: isSelected, text: text, isFixed: isFixed, notes: notes, index: index, isHintEligible: isHintEligible))
         }
         return copy
     }
@@ -373,9 +385,10 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
 
     /// Connects an external hint counter to the view.
     ///
-    /// Each time the binding's value **increases**, one randomly chosen empty editable cell is
-    /// filled with its correct solution value. Has no effect when every editable cell is already
-    /// filled.
+    /// Each time the binding's value **increases**, hint mode activates: all empty editable cells
+    /// glow orange, and the player taps the cell they want filled. The tapped cell is filled with
+    /// its correct solution value and hint mode ends. Has no effect when every editable cell is
+    /// already filled.
     ///
     /// ```swift
     /// @State private var hintCount = 0
@@ -387,7 +400,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
     /// ```
     ///
     /// - Parameter trigger: A binding to an integer counter owned by the parent. The view reads
-    ///   this value reactively; only increases trigger a reveal.
+    ///   this value reactively; only increases activate hint mode.
     public func hint(trigger: Binding<Int>) -> Self {
         var copy = self
         copy.hintTrigger = trigger

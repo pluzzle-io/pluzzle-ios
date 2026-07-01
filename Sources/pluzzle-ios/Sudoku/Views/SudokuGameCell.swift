@@ -5,6 +5,7 @@ import SwiftUI
 /// Colour scheme:
 /// - **Green**  — pre-filled (fixed) cell from the puzzle definition.
 /// - **Blue**   — editable cell that is currently selected.
+/// - **Orange** — empty editable cell eligible to receive the hint value (hint mode active).
 /// - **Gray**   — editable cell that is not selected.
 ///
 /// When `text` is empty and `notes` is non-empty, the cell renders pencil marks
@@ -19,6 +20,7 @@ struct SudokuGameCell: View, SudokuCellProtocol {
     var text: String
     var isFixed: Bool
     var notes: Set<Int>?
+    var isHintEligible: Bool = false
 
     init(isSelected: Bool, text: String, isFixed: Bool, notes: Set<Int>? = nil) {
         self.isSelected = isSelected
@@ -27,11 +29,19 @@ struct SudokuGameCell: View, SudokuCellProtocol {
         self.notes = notes
     }
 
+    init(isSelected: Bool, text: String, isFixed: Bool, notes: Set<Int>?, index: Int, isHintEligible: Bool) {
+        self.isSelected = isSelected
+        self.text = text
+        self.isFixed = isFixed
+        self.notes = notes
+        self.isHintEligible = isHintEligible
+    }
+
     private let noteColumns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 3)
 
     var body: some View {
         Rectangle()
-            .fill(isFixed ? Color.green : (isSelected ? Color.blue : Color.gray))
+            .fill(cellColor)
             .overlay {
                 ZStack {
                     // Notes layer — visible only while the cell is empty.
@@ -56,5 +66,12 @@ struct SudokuGameCell: View, SudokuCellProtocol {
                         .animation(.default, value: text)
                 }
             }
+    }
+
+    private var cellColor: Color {
+        if isFixed    { return Color.green }
+        if isSelected { return Color.blue }
+        if isHintEligible && text.isEmpty { return Color.orange.opacity(0.7) }
+        return Color.gray
     }
 }
