@@ -36,5 +36,7 @@ public protocol TakuzuCellProtocol: View {
     ///   - value: The current cell value. `nil` = empty/unfilled, `true` = one binary state (e.g. "1"), `false` = the other (e.g. "0").
     ///   - isFixed: `true` when this cell was a given in the original puzzle and cannot be edited.
     ///   - isViolation: `true` when this cell is part of a rule violation (balance, no-triples, or uniqueness).
-    init(row: Int, column: Int, value: Bool?, isFixed: Bool, isViolation: Bool)
+    ///   - isHintEligible: `true` when hint mode is active and this cell is empty and editable — the player
+    ///     can tap it to fill it with the correct solution value. Use this to render a visual hint indicator.
+    init(row: Int, column: Int, value: Bool?, isFixed: Bool, isViolation: Bool, isHintEligible: Bool)
 }

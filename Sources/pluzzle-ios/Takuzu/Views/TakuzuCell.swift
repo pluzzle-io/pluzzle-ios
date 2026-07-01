@@ -4,6 +4,7 @@ import SwiftUI
 ///
 /// Visual scheme:
 /// - **Empty (nil)** — muted gray tile, no label.
+/// - **HintEligible** — orange-tinted empty tile indicating the cell can be tapped to receive its solution value.
 /// - **True ("1")** — accent-tinted tile, label "1".
 /// - **False ("0")** — dark tile, label "0".
 /// - **Fixed givens** — slightly brighter background, no interaction animation.
@@ -14,13 +15,15 @@ struct TakuzuCell: TakuzuCellProtocol {
     let value: Bool?
     let isFixed: Bool
     let isViolation: Bool
+    let isHintEligible: Bool
 
-    init(row: Int, column: Int, value: Bool?, isFixed: Bool, isViolation: Bool) {
+    init(row: Int, column: Int, value: Bool?, isFixed: Bool, isViolation: Bool, isHintEligible: Bool) {
         self.row = row
         self.column = column
         self.value = value
         self.isFixed = isFixed
         self.isViolation = isViolation
+        self.isHintEligible = isHintEligible
     }
 
     var body: some View {
@@ -47,6 +50,7 @@ struct TakuzuCell: TakuzuCellProtocol {
     private var backgroundColor: Color {
         switch value {
         case nil:
+            if isHintEligible { return Color.orange.opacity(0.35) }
             return isFixed ? Color(.systemGray4) : Color(.systemGray5)
         case true:
             return isFixed ? Color.accentColor.opacity(0.85) : Color.accentColor.opacity(0.6)

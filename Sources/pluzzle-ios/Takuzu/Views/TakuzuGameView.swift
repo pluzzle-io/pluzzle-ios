@@ -48,13 +48,15 @@ public struct TakuzuGameView: View {
     private var gridSpacing: CGFloat = 4
     private var shouldShowViolations: Bool = true
 
-    private var cellFactory: (_ row: Int, _ col: Int, _ value: Bool?, _ isFixed: Bool, _ isViolation: Bool) -> AnyView = {
-        row, col, value, isFixed, isViolation in
-        AnyView(TakuzuCell(row: row, column: col, value: value, isFixed: isFixed, isViolation: isViolation))
+    private var cellFactory: (_ row: Int, _ col: Int, _ value: Bool?, _ isFixed: Bool, _ isViolation: Bool, _ isHintEligible: Bool) -> AnyView = {
+        row, col, value, isFixed, isViolation, isHintEligible in
+        AnyView(TakuzuCell(row: row, column: col, value: value, isFixed: isFixed, isViolation: isViolation, isHintEligible: isHintEligible))
     }
 
     // Hint trigger
     private var hintTrigger: Binding<Int>? = nil
+
+    @State private var isHintModeActive: Bool = false
 
     // Callbacks
     private var onCellTapCallback: ((_ row: Int, _ col: Int, _ newValue: Bool?) -> Void)? = nil
@@ -82,11 +84,12 @@ public struct TakuzuGameView: View {
             ForEach(0..<model.size, id: \.self) { row in
                 HStack(spacing: gridSpacing) {
                     ForEach(0..<model.size, id: \.self) { col in
-                        let value    = model.state[row][col]
-                        let isFixed  = model.isFixed(row: row, col: col)
-                        let isVio    = violations.contains(TakuzuCoord(row: row, col: col))
+                        let value          = model.state[row][col]
+                        let isFixed        = model.isFixed(row: row, col: col)
+                        let isVio          = violations.contains(TakuzuCoord(row: row, col: col))
+                        let isHintEligible = isHintModeActive && value == nil && !isFixed
 
-                        cellFactory(row, col, value, isFixed, isVio)
+                        cellFactory(row, col, value, isFixed, isVio, isHintEligible)
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 guard !isFixed else { return }
@@ -98,9 +101,8 @@ public struct TakuzuGameView: View {
         }
         .onChange(of: hintTrigger?.wrappedValue ?? 0) { oldValue, newValue in
             guard newValue > oldValue, newValue > 0 else { return }
-            var updated = model
-            updated.revealHint()
-            model = updated
+            guard !model.isComplete else { return }
+            isHintModeActive = true
         }
         // Single completion observer — fires after every model.state mutation (tap or hint)
         // in a SwiftUI side-effect context where the binding reflects the new value.
@@ -119,8 +121,8 @@ public struct TakuzuGameView: View {
     public func grid<T: TakuzuCellProtocol>(spacing: CGFloat, cell: T.Type) -> Self {
         var copy = self
         copy.gridSpacing = spacing
-        copy.cellFactory = { row, col, value, isFixed, isViolation in
-            AnyView(T(row: row, column: col, value: value, isFixed: isFixed, isViolation: isViolation))
+        copy.cellFactory = { row, col, value, isFixed, isViolation, isHintEligible in
+            AnyView(T(row: row, column: col, value: value, isFixed: isFixed, isViolation: isViolation, isHintEligible: isHintEligible))
         }
         return copy
     }
@@ -139,10 +141,10 @@ public struct TakuzuGameView: View {
 
     /// Connects an external hint counter to the view.
     ///
-    /// Each time the binding's value **increases**, one randomly chosen empty cell is filled with
-    /// its correct solution value. Has no effect when the board is fully filled.
+    /// Each time the binding's value **increases**, hint mode is activated: all empty editable
+    /// cells are highlighted and the next tap on any of them fills it with its correct solution
+    /// value. Hint mode ends after one tap. Has no effect when the board is fully filled.
     ///
-    /// Increment the binding to request a hint:
     /// ```swift
     /// Button("Hint") { hintCount += 1 }
     ///
@@ -151,7 +153,7 @@ public struct TakuzuGameView: View {
     /// ```
     ///
     /// - Parameter trigger: A binding to an integer counter owned by the parent. The view reads
-    ///   this value reactively; only increases trigger a reveal.
+    ///   this value reactively; only increases activate hint mode.
     public func hint(trigger: Binding<Int>) -> Self {
         var copy = self
         copy.hintTrigger = trigger
@@ -194,6 +196,18 @@ public struct TakuzuGameView: View {
     /// than inline, so it runs in SwiftUI's side-effect context where the new model is guaranteed
     /// to be fully committed.
     private func handleTap(row: Int, col: Int) {
+        if isHintModeActive {
+            isHintModeActive = false
+            // Fill empty cells with the solution value; ignore already-filled cells
+            if model.state[row][col] == nil, let solutionValue = model.solution[row][col] {
+                var updated = model
+                updated.state[row][col] = solutionValue
+                model = updated
+                onCellTapCallback?(row, col, solutionValue)
+            }
+            return
+        }
+
         var updated = model
         let current = updated.state[row][col]
         let next: Bool?

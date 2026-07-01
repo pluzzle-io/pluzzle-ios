@@ -56,6 +56,7 @@ public struct ShikakuGameView: View {
 
     @State private var dragStart: ShikakuCoord? = nil
     @State private var dragEnd: ShikakuCoord? = nil
+    @State private var isHintModeActive: Bool = false
 
     // MARK: - Init
 
@@ -109,11 +110,8 @@ public struct ShikakuGameView: View {
         .aspectRatio(2.0 / 3.0, contentMode: .fit)
         .onChange(of: hintTrigger?.wrappedValue ?? 0) { oldValue, newValue in
             guard newValue > oldValue, newValue > 0 else { return }
-            let wasSolved = model.isSolved
-            model.revealHint()
-            if !wasSolved && model.isSolved {
-                onCompleteCallback?()
-            }
+            guard !model.isSolved, model.solution != nil else { return }
+            isHintModeActive = true
         }
     }
 
@@ -154,9 +152,10 @@ public struct ShikakuGameView: View {
 
     /// Connects an external hint counter to the view.
     ///
-    /// Each time the binding's value **increases**, one randomly chosen unsolved rectangle from
-    /// ``ShikakuModel/solution`` is revealed and placed on the grid. Has no effect when no
-    /// solution was provided or when every solution rectangle is already correctly placed.
+    /// Each time the binding's value **increases**, hint mode is activated: all uncovered cells
+    /// are highlighted and the next single-cell tap on any of them reveals the solution rectangle
+    /// that should cover it. Hint mode ends after one tap. Has no effect when no solution was
+    /// provided or when the puzzle is already solved.
     ///
     /// ```swift
     /// @State private var hintCount = 0
@@ -168,7 +167,7 @@ public struct ShikakuGameView: View {
     /// ```
     ///
     /// - Parameter trigger: A binding to an integer counter owned by the parent. The view reads
-    ///   this value reactively; only increases trigger a reveal.
+    ///   this value reactively; only increases activate hint mode.
     public func hint(trigger: Binding<Int>) -> Self {
         var copy = self
         copy.hintTrigger = trigger
@@ -257,7 +256,8 @@ public struct ShikakuGameView: View {
             isViolation: isViolation,
             isPreview: inPreview && placedRect == nil,
             isOverlap: isOverlap,
-            colorIndex: placedRect.flatMap { colorMap[$0] }
+            colorIndex: placedRect.flatMap { colorMap[$0] },
+            isHintEligible: isHintModeActive && placedRect == nil
         )
     }
 
@@ -278,6 +278,23 @@ public struct ShikakuGameView: View {
     private func commitDrag(end: ShikakuCoord) {
         dragEnd = end
         guard let rect = makePreviewRect() else { return }
+
+        // In hint mode: single-cell tap on an uncovered cell reveals its solution rectangle.
+        // Any other gesture just deactivates hint mode.
+        if isHintModeActive {
+            isHintModeActive = false
+            if rect.rowSpan == 1 && rect.colSpan == 1 {
+                let tapped = ShikakuCoord(row: rect.row, col: rect.col)
+                if model.rect(at: tapped) == nil,
+                   let solutionRect = model.solution?.first(where: { $0.contains(tapped) }) {
+                    let wasSolved = model.isSolved
+                    model.place(solutionRect)
+                    onMoveCallback?(solutionRect)
+                    if !wasSolved && model.isSolved { onCompleteCallback?() }
+                }
+            }
+            return
+        }
 
         // Single-cell gesture on an already-covered cell → remove that rect.
         if rect.rowSpan == 1 && rect.colSpan == 1 {

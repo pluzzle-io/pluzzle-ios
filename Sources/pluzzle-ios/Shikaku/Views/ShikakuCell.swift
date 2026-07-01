@@ -4,6 +4,7 @@ import SwiftUI
 ///
 /// Visual scheme:
 /// - **Blank uncovered cell** — muted gray tile.
+/// - **HintEligible cell** — orange-tinted uncovered tile indicating the player can tap it to reveal its solution rectangle.
 /// - **Clue cell** — tile with the clue number centred in bold.
 /// - **Covered cell** — tinted background showing it belongs to a placed rectangle.
 /// - **Preview cell** — lighter tint indicating the rectangle currently being drawn.
@@ -51,6 +52,9 @@ struct ShikakuCell: ShikakuCellProtocol {
         }
         if let index = state.colorIndex {
             return palette[index % palette.count].opacity(0.55)
+        }
+        if state.isHintEligible {
+            return Color.orange.opacity(0.35)
         }
         return Color(.systemGray5)
     }

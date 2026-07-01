@@ -22,6 +22,9 @@ public struct ShikakuCellState: Equatable, Hashable, Sendable {
     /// Stable index into the colour palette for the rectangle that covers this cell.
     /// `nil` when the cell is uncovered and not in preview.
     public let colorIndex: Int?
+    /// `true` when hint mode is active and this cell is uncovered — tapping it will reveal
+    /// the solution rectangle that should cover it. Use this to render a visual hint indicator.
+    public let isHintEligible: Bool
 
     public init(
         clue: Int? = nil,
@@ -30,7 +33,8 @@ public struct ShikakuCellState: Equatable, Hashable, Sendable {
         isViolation: Bool = false,
         isPreview: Bool = false,
         isOverlap: Bool = false,
-        colorIndex: Int? = nil
+        colorIndex: Int? = nil,
+        isHintEligible: Bool = false
     ) {
         self.clue = clue
         self.rect = rect
@@ -39,5 +43,6 @@ public struct ShikakuCellState: Equatable, Hashable, Sendable {
         self.isPreview = isPreview
         self.isOverlap = isOverlap
         self.colorIndex = colorIndex
+        self.isHintEligible = isHintEligible
     }
 }
