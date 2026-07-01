@@ -17,6 +17,11 @@ public enum MinesweeperCellState: Equatable, Hashable, Sendable, Codable {
     /// A mine that was not tapped, revealed automatically when the game ends.
     case mineRevealed
 
+    /// A hidden cell that is eligible to be tapped safely during an active hint. The view sets
+    /// all hidden cells to this state while hint mode is active so the cell renderer can
+    /// distinguish them visually. Reverts to ``hidden`` as soon as the player taps.
+    case hintEligible
+
     // MARK: - Codable
 
     private enum CodingKeys: String, CodingKey {
@@ -25,20 +30,21 @@ public enum MinesweeperCellState: Equatable, Hashable, Sendable, Codable {
     }
 
     private enum TypeKey: String, Codable {
-        case hidden, revealed, flagged, exploded, mineRevealed
+        case hidden, revealed, flagged, exploded, mineRevealed, hintEligible
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let type = try container.decode(TypeKey.self, forKey: .type)
         switch type {
-        case .hidden:        self = .hidden
+        case .hidden:         self = .hidden
         case .revealed:
             let adj = try container.decode(Int.self, forKey: .adjacentMines)
             self = .revealed(adjacentMines: adj)
-        case .flagged:       self = .flagged
-        case .exploded:      self = .exploded
-        case .mineRevealed:  self = .mineRevealed
+        case .flagged:        self = .flagged
+        case .exploded:       self = .exploded
+        case .mineRevealed:   self = .mineRevealed
+        case .hintEligible:   self = .hintEligible
         }
     }
 
@@ -56,6 +62,8 @@ public enum MinesweeperCellState: Equatable, Hashable, Sendable, Codable {
             try container.encode(TypeKey.exploded, forKey: .type)
         case .mineRevealed:
             try container.encode(TypeKey.mineRevealed, forKey: .type)
+        case .hintEligible:
+            try container.encode(TypeKey.hintEligible, forKey: .type)
         }
     }
 }

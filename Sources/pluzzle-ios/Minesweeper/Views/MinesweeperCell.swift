@@ -4,6 +4,7 @@ import SwiftUI
 ///
 /// Renders each ``MinesweeperCellState`` with classic Minesweeper conventions:
 /// - **Hidden** — solid gray tile.
+/// - **HintEligible** — orange-tinted tile indicating the cell can be tapped without losing during an active hint.
 /// - **Revealed(0)** — flat empty tile (no number).
 /// - **Revealed(1–8)** — flat tile with the adjacent-mine count in its classic colour (blue, green, red, …).
 /// - **Flagged** — gray tile with an orange flag icon.
@@ -33,6 +34,7 @@ struct MinesweeperCell: MinesweeperCellProtocol {
     private var backgroundColor: Color {
         switch state {
         case .hidden, .flagged:      return Color(.systemGray4)
+        case .hintEligible:          return Color.orange.opacity(0.35)
         case .revealed:              return Color(.systemGray6)
         case .exploded:              return .red
         case .mineRevealed:          return Color(.systemGray3)
@@ -43,6 +45,8 @@ struct MinesweeperCell: MinesweeperCellProtocol {
     private var content: some View {
         switch state {
         case .hidden:
+            EmptyView()
+        case .hintEligible:
             EmptyView()
         case .revealed(let count):
             if count > 0 {
