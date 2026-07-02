@@ -258,7 +258,7 @@ public struct SudokuGameView<Model: SudokuGameModelProtocol>: View {
                             guard !isFixed else { return }
                             if isHintModeActive {
                                 isHintModeActive = false
-                                guard model.state[safe: row]?[safe: col] == nil else { return }
+                                guard model.state[row][col] == nil else { return }
                                 model.state[row][col] = model.solution[row][col]
                                 model.notes?[row][col] = []
                                 onInputCallback?(row, col, model.solution[row][col])
